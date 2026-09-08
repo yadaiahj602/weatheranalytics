@@ -19,8 +19,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
 ENV C_INCLUDE_PATH=/usr/include/gdal
 
-COPY requirements/local.txt /tmp/requirements.txt
-RUN pip install --upgrade pip && pip install --no-cache-dir -r /tmp/requirements.txt
+COPY requirements/ /tmp/requirements/
+RUN pip install --upgrade pip && pip install --no-cache-dir -r /tmp/requirements/local.txt
 
 COPY . /app/
 RUN mkdir -p /app/media /app/staticfiles
