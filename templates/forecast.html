@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}5-Day Forecast — Weather Analytics{% endblock %}
+{% block page_title %}5-Day Daily Weather Forecast{% endblock %}
+{% block page_subtitle %}Synoptic meteorological outlook and diurnal temperature ranges from Open-Meteo models{% endblock %}
+
+{% block content %}
+<!-- City Selector Buttons -->
+<div class="card" style="margin-bottom: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <div>
+            <div class="section-tag">Active City Outlook</div>
+            <h3 id="forecastCityTitle" style="font-size: 20px; font-weight: 800; color: #fff;">Bengaluru Forecast</h3>
+            <span id="forecastCitySub" style="font-size: 11px; color: var(--text-muted);">Coordinates: 12.9716° N, 77.5946° E</span>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn-action active-city-btn" id="btn-bengaluru" onclick="switchForecastCity('Bengaluru', 12.9716, 77.5946)">Bengaluru</button>
+            <button class="btn-action" id="btn-mumbai" onclick="switchForecastCity('Mumbai', 19.0760, 72.8777)">Mumbai</button>
+            <button class="btn-action" id="btn-delhi" onclick="switchForecastCity('Delhi', 28.6139, 77.2090)">Delhi</button>
+            <button class="btn-action" id="btn-chennai" onclick="switchForecastCity('Chennai', 13.0827, 80.2707)">Chennai</button>
+        </div>
+    </div>
+</div>
+
+<!-- 5-Day Daily Forecast Grid -->
+<div class="forecast-grid" id="detailedForecastContainer" style="margin-bottom: 30px;">
+    <div class="forecast-card"><div class="forecast-day">Loading 5-Day Forecast...</div></div>
+</div>
+
+<!-- Detailed Daily Breakdown Table -->
+<div class="card">
+    <div class="section-tag">Meteorological Synoptic Parameters</div>
+    <h3 style="font-size: 16px; font-weight: 800; color: #fff; margin-bottom: 16px;">Daily Atmospheric Profile</h3>
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: 11px; text-transform: uppercase;">
+                    <th style="padding: 12px 16px;">Date / Day</th>
+                    <th style="padding: 12px 16px;">Condition</th>
+                    <th style="padding: 12px 16px;">High Temp</th>
+                    <th style="padding: 12px 16px;">Low Temp</th>
+                    <th style="padding: 12px 16px;">Diurnal Variation</th>
+                    <th style="padding: 12px 16px;">Weather Code</th>
+                </tr>
+            </thead>
+            <tbody id="forecastTableBody">
+                <tr><td colspan="6" style="padding: 16px; text-align: center; color: var(--text-muted);">Loading table data...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function switchForecastCity(name, lat, lon) {
+        document.querySelectorAll('.btn-action').forEach(b => {
+            b.style.borderColor = 'var(--border)';
+            b.style.color = 'var(--text-secondary)';
+        });
+        const activeBtn = document.getElementById(`btn-${name.toLowerCase()}`);
+        if (activeBtn) {
+            activeBtn.style.borderColor = 'var(--accent-cyan)';
+            activeBtn.style.color = '#fff';
+        }
+
+        document.getElementById('forecastCityTitle').textContent = `${name} 5-Day Outlook`;
+        document.getElementById('forecastCitySub').textContent = `Coordinates: ${lat.toFixed(4)}° N, ${lon.toFixed(4)}° E • Open-Meteo Model`;
+
+        try {
+            const data = await apiGet(`/api/weather/?lat=${lat}&lon=${lon}`);
+            const fContainer = document.getElementById('detailedForecastContainer');
+            const tbody = document.getElementById('forecastTableBody');
+
+            if (data.daily_forecast && data.daily_forecast.length > 0) {
+                fContainer.innerHTML = '';
+                tbody.innerHTML = '';
+                const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+                data.daily_forecast.forEach((d, idx) => {
+                    const dateObj = new Date(d.date);
+                    const dayName = idx === 0 ? 'Today' : (dayNames[dateObj.getDay()] || d.date);
+                    const cInfo = weatherCodeMap[d.weather_code] || { label: 'Nominal', icon: '🌤️' };
+                    const maxT = d.temperature_max !== null ? Math.round(d.temperature_max) : '--';
+                    const minT = d.temperature_min !== null ? Math.round(d.temperature_min) : '--';
+                    const diff = (maxT !== '--' && minT !== '--') ? `${maxT - minT}°C` : '--';
+
+                    // Cards
+                    fContainer.innerHTML += `
+                        <div class="forecast-card">
+                            <div class="forecast-day">${dayName}</div>
+                            <div class="forecast-date">${d.date}</div>
+                            <div class="forecast-icon">${cInfo.icon}</div>
+                            <div class="forecast-temps">${maxT}° <span>/ ${minT}°</span></div>
+                            <div style="font-size: 11px; color: var(--accent-cyan); margin-top: 8px;">${cInfo.label}</div>
+                        </div>
+                    `;
+
+                    // Table row
+                    tbody.innerHTML += `
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+                            <td style="padding: 12px 16px; font-weight: 700; color: #fff;">${dayName} <span style="font-size: 11px; color: var(--text-muted);">(${d.date})</span></td>
+                            <td style="padding: 12px 16px;">${cInfo.icon} ${cInfo.label}</td>
+                            <td style="padding: 12px 16px; color: var(--accent-rose); font-weight: 700;">${maxT}°C</td>
+                            <td style="padding: 12px 16px; color: var(--accent-cyan); font-weight: 700;">${minT}°C</td>
+                            <td style="padding: 12px 16px; color: var(--text-secondary);">Δ ${diff}</td>
+                            <td style="padding: 12px 16px; font-family: monospace; color: var(--text-muted);">${d.weather_code}</td>
+                        </tr>
+                    `;
+                });
+            }
+        } catch (err) {
+            console.error('Failed to load forecast:', err);
+        }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        switchForecastCity('Bengaluru', 12.9716, 77.5946);
+    });
+</script>
+{% endblock %}

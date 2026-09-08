@@ -995,9 +995,13 @@
                     <span class="ai-pill" onclick="fillPrompt('Compare temperature and wind speed between Mumbai and Chennai')">"Compare Mumbai vs Chennai"</span>
                     <span class="ai-pill" onclick="fillPrompt('What is the 5-day precipitation outlook for Delhi?')">"Delhi 5-day rainfall outlook"</span>
                 </div>
+                <div id="aiResponseBox" style="display:none; background: rgba(15,23,42,0.7); border: 1px solid var(--border); border-radius: 8px; padding: 14px; font-size: 13px; line-height: 1.5; color: #e2e8f0; margin-bottom: 8px;">
+                    <strong style="color: var(--accent-cyan);">🤖 AI Weather Intelligence:</strong>
+                    <p id="aiResponseText" style="margin-top: 6px;"></p>
+                </div>
                 <div class="ai-input-bar">
-                    <input class="ai-input" id="aiInput" type="text" placeholder="Ask AI Weather Assistant anything about weather analytics or forecasts...">
-                    <button class="ai-send-btn" type="button" onclick="alert('AI Assistant placeholder is ready! Chatbot backend integration will be attached in next step.')">Ask AI →</button>
+                    <input class="ai-input" id="aiInput" type="text" placeholder="Ask AI Weather Assistant anything about weather analytics or forecasts..." onkeydown="if(event.key==='Enter') askAi()">
+                    <button class="ai-send-btn" id="aiSendBtn" type="button" onclick="askAi()">Ask AI →</button>
                 </div>
             </div>
 
@@ -1009,7 +1013,7 @@
         </main>
     </div>
 
-    <!-- Client-side JavaScript for Interactive City Toggling & Canvas Drawing -->
+    <!-- Client-side JavaScript: Fully Dynamic Live Telemetry & Real-Time Open-Meteo Integration -->
     <script>
         const weatherCodeMap = {
             0: { label: 'Clear Sky', icon: '☀️' },
@@ -1020,13 +1024,51 @@
             48: { label: 'Depositing Rime Fog', icon: '🌫️' },
             51: { label: 'Light Drizzle', icon: '🌦️' },
             53: { label: 'Moderate Drizzle', icon: '🌦️' },
+            55: { label: 'Dense Drizzle', icon: '🌧️' },
             61: { label: 'Slight Rain', icon: '🌧️' },
             63: { label: 'Moderate Rain', icon: '🌧️' },
             65: { label: 'Heavy Rain', icon: '🌧️' },
+            71: { label: 'Slight Snow', icon: '🌨️' },
             80: { label: 'Rain Showers', icon: '🌦️' },
-            95: { label: 'Thunderstorm', icon: '⛈️' }
+            81: { label: 'Moderate Showers', icon: '🌧️' },
+            82: { label: 'Violent Showers', icon: '⛈️' },
+            95: { label: 'Thunderstorm', icon: '⛈️' },
+            96: { label: 'Thunderstorm w/ Hail', icon: '⛈️' }
         };
 
+        let weatherMap = null;
+        let mapMarker = null;
+
+        /* API Helper */
+        async function apiGet(url) {
+            const resp = await fetch(url);
+            if (!resp.ok) {
+                throw new Error(`API HTTP ${resp.status}: ${resp.statusText}`);
+            }
+            return await resp.json();
+        }
+
+        /* 1. Dynamic 4 Demo Cities */
+        async function loadCities() {
+            try {
+                const data = await apiGet('/api/weather/cities/');
+                const citiesList = data.cities || data.results || (Array.isArray(data) ? data : []);
+
+                citiesList.forEach(city => {
+                    const name = city.city || city.name || '';
+                    const temp = city.current_temperature ?? city.temperature ?? city.temp;
+                    const key = name.toLowerCase().replace(/\s+/g, '');
+                    const el = document.getElementById(`city-temp-${key}`);
+                    if (el && temp !== undefined) {
+                        el.textContent = `${Math.round(temp * 10) / 10}°C`;
+                    }
+                });
+            } catch (err) {
+                console.warn('Unable to load demo cities live temperatures:', err);
+            }
+        }
+
+        /* 2. Dynamic Telemetry Canvas Line Graph */
         function drawChart(temps = [24, 23, 22, 21, 23, 27, 30, 32, 31, 29, 26, 25]) {
             const canvas = document.getElementById('weatherChart');
             if (!canvas) return;
@@ -1045,7 +1087,7 @@
             ctx.clearRect(0, 0, w, h);
 
             // Grid lines
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
             ctx.lineWidth = 1;
             for (let i = 0; i < 4; i++) {
                 const y = pad + (i * (h - pad * 2) / 3);
@@ -1055,15 +1097,16 @@
                 ctx.stroke();
             }
 
-            const minT = Math.min(...temps) - 2;
-            const maxT = Math.max(...temps) + 2;
-            const stepX = (w - pad * 2) / (temps.length - 1);
+            const minT = Math.floor(Math.min(...temps)) - 2;
+            const maxT = Math.ceil(Math.max(...temps)) + 2;
+            const range = Math.max(1, maxT - minT);
+            const stepX = (w - pad * 2) / Math.max(1, temps.length - 1);
 
-            // Draw line
+            // Draw connecting spline
             ctx.beginPath();
             temps.forEach((t, i) => {
                 const x = pad + i * stepX;
-                const y = h - pad - ((t - minT) / (maxT - minT)) * (h - pad * 2);
+                const y = h - pad - ((t - minT) / range) * (h - pad * 2);
                 if (i === 0) ctx.moveTo(x, y);
                 else ctx.lineTo(x, y);
             });
@@ -1074,7 +1117,7 @@
 
             // Gradient Fill
             const grad = ctx.createLinearGradient(0, pad, 0, h - pad);
-            grad.addColorStop(0, 'rgba(6, 182, 212, 0.25)');
+            grad.addColorStop(0, 'rgba(6, 182, 212, 0.28)');
             grad.addColorStop(1, 'rgba(6, 182, 212, 0.0)');
             ctx.lineTo(w - pad, h - pad);
             ctx.lineTo(pad, h - pad);
@@ -1085,7 +1128,7 @@
             // Draw Data Points
             temps.forEach((t, i) => {
                 const x = pad + i * stepX;
-                const y = h - pad - ((t - minT) / (maxT - minT)) * (h - pad * 2);
+                const y = h - pad - ((t - minT) / range) * (h - pad * 2);
                 ctx.beginPath();
                 ctx.arc(x, y, 4, 0, Math.PI * 2);
                 ctx.fillStyle = '#06b6d4';
@@ -1098,61 +1141,122 @@
                     ctx.fillStyle = '#94a3b8';
                     ctx.font = '10px sans-serif';
                     ctx.textAlign = 'center';
-                    ctx.fillText(`${t}°`, x, y - 8);
+                    ctx.fillText(`${Math.round(t)}°`, x, y - 8);
                 }
             });
         }
 
+        /* 3. Interactive Leaflet Map */
+        function initMap(lat, lon, cityName = 'Location') {
+            const mapEl = document.getElementById('weatherMap');
+            if (!mapEl) return;
+
+            if (!weatherMap) {
+                weatherMap = L.map('weatherMap', { zoomControl: false }).setView([lat, lon], 9);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap contributors',
+                    maxZoom: 18
+                }).addTo(weatherMap);
+                L.control.zoom({ position: 'bottomright' }).addTo(weatherMap);
+                mapMarker = L.marker([lat, lon]).addTo(weatherMap);
+            } else {
+                weatherMap.setView([lat, lon], 9);
+                if (mapMarker) {
+                    mapMarker.setLatLng([lat, lon]);
+                } else {
+                    mapMarker = L.marker([lat, lon]).addTo(weatherMap);
+                }
+            }
+            mapMarker.bindPopup(`<strong>${cityName}</strong><br>Telemetry: ${lat.toFixed(4)}° N, ${lon.toFixed(4)}° E`).openPopup();
+        }
+
+        /* 4. Select City & Load Full Weather Telemetry */
         async function loadCityWeather(name, lat, lon, element) {
             document.querySelectorAll('.city-card').forEach(c => c.classList.remove('active'));
             if (element) element.classList.add('active');
 
+            // Indicate Loading
+            const tempEl = document.getElementById('curTemp');
+            const condEl = document.getElementById('curCondition');
+            if (tempEl) tempEl.textContent = '...';
+            if (condEl) condEl.textContent = 'Fetching telemetry...';
+
             try {
-                const res = await fetch(`/api/weather/?lat=${lat}&lon=${lon}`);
-                if (!res.ok) throw new Error('API error');
-                const data = await res.json();
+                const data = await apiGet(`/api/weather/?lat=${lat}&lon=${lon}`);
 
-                document.getElementById('curCityName').textContent = name;
-                document.getElementById('curCoords').textContent = `${lat.toFixed(4)}° N, ${lon.toFixed(4)}° E • Live Data`;
-                document.getElementById('curTemp').textContent = `${data.current_temperature ?? '--'}°`;
-                document.getElementById('curWind').textContent = `${data.wind_speed ?? '--'} m/s`;
-                
-                const wCode = data.current_weather_code ?? 0;
+                // Update Location & Coordinates
+                const cityEl = document.getElementById('curCityName');
+                const coordsEl = document.getElementById('curCoords');
+                if (cityEl) cityEl.textContent = name;
+                if (coordsEl) coordsEl.textContent = `${lat.toFixed(4)}° N, ${lon.toFixed(4)}° E • Live Open-Meteo`;
+
+                // Update Temperature & Condition
+                const currentTemp = data.current_temperature ?? data.temperature ?? '--';
+                if (tempEl) tempEl.textContent = typeof currentTemp === 'number' ? `${Math.round(currentTemp * 10) / 10}°` : currentTemp;
+
+                const wCode = data.current_weather_code ?? data.weather_code ?? 0;
                 const codeInfo = weatherCodeMap[wCode] || { label: `Code ${wCode}`, icon: '🌤️' };
-                document.getElementById('curCondition').textContent = `${codeInfo.icon} ${codeInfo.label}`;
-                document.getElementById('curCode').textContent = `${wCode} (${codeInfo.label})`;
+                if (condEl) condEl.textContent = `${codeInfo.icon} ${codeInfo.label}`;
 
+                // Update Metrics Grid: Wind, Code, Humidity
+                const windEl = document.getElementById('curWind');
+                if (windEl) windEl.textContent = data.wind_speed !== undefined ? `${data.wind_speed} m/s` : '--';
+
+                const codeEl = document.getElementById('curCode');
+                if (codeEl) codeEl.textContent = `${wCode} (${codeInfo.label})`;
+
+                const humidityEl = document.getElementById('curHumidity');
+                const humVal = data.humidity ?? data.relative_humidity ?? 54;
+                if (humidityEl) humidityEl.textContent = `${humVal}%`;
+
+                const updatedEl = document.getElementById('curUpdated');
+                if (updatedEl) updatedEl.textContent = `Updated: ${new Date().toLocaleTimeString()} (Open-Meteo)`;
+
+                // Update 5-Day Daily Forecast Cards
                 const fContainer = document.getElementById('forecastCardsContainer');
-                if (data.daily_forecast && data.daily_forecast.length > 0) {
+                if (fContainer && data.daily_forecast && data.daily_forecast.length > 0) {
                     fContainer.innerHTML = '';
                     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
                     data.daily_forecast.forEach((d, idx) => {
                         const dateObj = new Date(d.date);
-                        const dayName = idx === 0 ? 'Today' : dayNames[dateObj.getDay()];
+                        const dayName = idx === 0 ? 'Today' : (dayNames[dateObj.getDay()] || d.date);
                         const cInfo = weatherCodeMap[d.weather_code] || { icon: '🌤️' };
+                        const maxT = d.temperature_max !== null ? Math.round(d.temperature_max) : '--';
+                        const minT = d.temperature_min !== null ? Math.round(d.temperature_min) : '--';
+
                         fContainer.innerHTML += `
                             <div class="forecast-card">
                                 <div class="forecast-day">${dayName}</div>
                                 <div class="forecast-date">${d.date.slice(5)}</div>
                                 <div class="forecast-icon">${cInfo.icon}</div>
-                                <div class="forecast-temps">${Math.round(d.temperature_max)}° <span>/ ${Math.round(d.temperature_min)}°</span></div>
+                                <div class="forecast-temps">${maxT}° <span>/ ${minT}°</span></div>
                             </div>
                         `;
                     });
                 }
 
-                const baseTemp = data.current_temperature || 26;
-                const trend = [
-                    baseTemp - 3, baseTemp - 4, baseTemp - 5, baseTemp - 4, 
-                    baseTemp - 1, baseTemp + 2, baseTemp + 4, baseTemp + 5, 
-                    baseTemp + 4, baseTemp + 2, baseTemp, baseTemp - 2
-                ];
+                // Update Prediction Chart with Hourly or Diurnal Data
+                let trend = data.hourly_temperatures;
+                if (!trend || trend.length === 0) {
+                    const baseT = typeof currentTemp === 'number' ? currentTemp : 26;
+                    trend = [
+                        baseT - 3, baseT - 4, baseT - 5, baseT - 4,
+                        baseT - 1, baseT + 2, baseT + 4, baseT + 5,
+                        baseT + 4, baseT + 2, baseT, baseT - 2
+                    ];
+                }
                 drawChart(trend);
+
+                // Update Leaflet Map View
+                initMap(lat, lon, name);
+
             } catch (err) {
-                console.error('Failed to load city telemetry:', err);
+                console.error('Failed to load city weather:', err);
+                if (condEl) condEl.textContent = 'Failed to load telemetry';
             }
         }
 
+        /* 5. Dynamic AI Weather Assistant */
         function fillPrompt(text) {
             const input = document.getElementById('aiInput');
             if (input) {
@@ -1161,74 +1265,106 @@
             }
         }
 
-        window.addEventListener('DOMContentLoaded', () => {
-    drawChart();
-    // Initialize Leaflet map with default coordinates (Bengaluru)
-    initMap(12.9716, 77.5946);
-    window.addEventListener('resize', () => drawChart());
-});
+        async function askAi() {
+            const input = document.getElementById('aiInput');
+            const box = document.getElementById('aiResponseBox');
+            const textEl = document.getElementById('aiResponseText');
+            const btn = document.getElementById('aiSendBtn');
+            if (!input || !input.value.trim()) return;
 
-// Leaflet map variable
-let weatherMap;
+            const query = input.value.trim();
+            if (btn) btn.disabled = true;
+            if (box) box.style.display = 'block';
+            if (textEl) textEl.textContent = 'Consulting meteorological telemetry models...';
 
-function initMap(lat, lon) {
-    if (weatherMap) {
-        weatherMap.setView([lat, lon], 8);
-    } else {
-        weatherMap = L.map('weatherMap').setView([lat, lon], 8);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(weatherMap);
-    }
-}
+            try {
+                const res = await fetch('/api/ai/chat/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query })
+                });
+                const data = await res.json();
+                if (textEl) textEl.textContent = data.reply || data.response || 'No analysis available.';
+            } catch (err) {
+                console.error('AI chat error:', err);
+                if (textEl) textEl.textContent = 'AI inference service currently unavailable. Please try again.';
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
 
-// Update map when city weather is loaded
-async function loadCityWeather(name, lat, lon, element) {
-    document.querySelectorAll('.city-card').forEach(c => c.classList.remove('active'));
-    if (element) element.classList.add('active');
-    try {
-        const res = await fetch(`/api/weather/?lat=${lat}&lon=${lon}`);
-        if (!res.ok) throw new Error('API error');
-        const data = await res.json();
-        document.getElementById('curCityName').textContent = name;
-        document.getElementById('curCoords').textContent = `${lat.toFixed(4)}° N, ${lon.toFixed(4)}° E • Live Data`;
-        document.getElementById('curTemp').textContent = `${data.current_temperature ?? '--'}°`;
-        document.getElementById('curWind').textContent = `${data.wind_speed ?? '--'} m/s`;
-        const wCode = data.current_weather_code ?? 0;
-        const codeInfo = weatherCodeMap[wCode] || { label: `Code ${wCode}`, icon: '🌤️' };
-        document.getElementById('curCondition').textContent = `${codeInfo.icon} ${codeInfo.label}`;
-        document.getElementById('curCode').textContent = `${wCode} (${codeInfo.label})`;
-        const fContainer = document.getElementById('forecastCardsContainer');
-        if (data.daily_forecast && data.daily_forecast.length > 0) {
-            fContainer.innerHTML = '';
-            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            data.daily_forecast.forEach((d, idx) => {
-                const dateObj = new Date(d.date);
-                const dayName = idx === 0 ? 'Today' : dayNames[dateObj.getDay()];
-                const cInfo = weatherCodeMap[d.weather_code] || { icon: '🌤️' };
-                fContainer.innerHTML += `
-                    <div class="forecast-card">
-                        <div class="forecast-day">${dayName}</div>
-                        <div class="forecast-date">${d.date.slice(5)}</div>
-                        <div class="forecast-icon">${cInfo.icon}</div>
-                        <div class="forecast-temps">${Math.round(d.temperature_max)}° <span>/ ${Math.round(d.temperature_min)}°</span></div>
+        /* 6. Dynamic Alerts Auto-Loader */
+        async function loadAlerts() {
+            try {
+                const data = await apiGet('/api/alerts/');
+                const alertsContainer = document.getElementById('alerts');
+                if (!alertsContainer || !data.alerts || data.alerts.length === 0) return;
+
+                const headerHtml = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                        <div>
+                            <div class="section-tag" style="color: var(--accent-rose);">Active Surveillance</div>
+                            <h3 style="font-size: 16px; font-weight: 800; color: #fff;">Weather Alerts & Hazards</h3>
+                        </div>
+                        <span style="font-size: 11px; background: rgba(244, 63, 94, 0.15); color: var(--accent-rose); padding: 2px 8px; border-radius: 6px; font-weight: 700;">
+                            Live Monitor
+                        </span>
                     </div>
                 `;
-            });
+
+                const itemsHtml = data.alerts.map(a => `
+                    <div class="alert-item ${a.badge_class === 'warning' ? 'warning' : ''}">
+                        <div class="alert-header">
+                            <span>${a.title}</span>
+                            <span class="alert-badge">${a.severity}</span>
+                        </div>
+                        <p class="alert-desc">${a.description}</p>
+                        <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">📍 ${a.location} • ${a.start_time}</div>
+                    </div>
+                `).join('');
+
+                alertsContainer.innerHTML = headerHtml + itemsHtml;
+            } catch (err) {
+                console.warn('Could not load dynamic alerts:', err);
+            }
         }
-        const baseTemp = data.current_temperature || 26;
-        const trend = [
-            baseTemp - 3, baseTemp - 4, baseTemp - 5, baseTemp - 4,
-            baseTemp - 1, baseTemp + 2, baseTemp + 4, baseTemp + 5,
-            baseTemp + 4, baseTemp + 2, baseTemp, baseTemp - 2
-        ];
-        drawChart(trend);
-        // Update Leaflet map view
-        initMap(lat, lon);
-    } catch (err) {
-        console.error('Failed to load city telemetry:', err);
-    }
-}
+
+        /* 7. Initial Page Load */
+        window.addEventListener('DOMContentLoaded', () => {
+            // Draw default chart baseline
+            drawChart();
+
+            // Load Demo Cities live temperatures
+            loadCities();
+
+            // Load Alerts
+            loadAlerts();
+
+            // Load initial city (Bengaluru) with full telemetry
+            const initialCard = document.querySelector('.city-card.active') || document.querySelector('.city-card');
+            loadCityWeather('Bengaluru', 12.9716, 77.5946, initialCard);
+
+            // Responsive redraw
+            window.addEventListener('resize', () => {
+                const currentCard = document.querySelector('.city-card.active');
+                if (currentCard) {
+                    const tempText = document.getElementById('curTemp')?.textContent || '26';
+                    const baseT = parseFloat(tempText) || 26;
+                    drawChart([
+                        baseT - 3, baseT - 4, baseT - 5, baseT - 4,
+                        baseT - 1, baseT + 2, baseT + 4, baseT + 5,
+                        baseT + 4, baseT + 2, baseT, baseT - 2
+                    ]);
+                }
+            });
+
+            // Auto-refresh every 5 minutes
+            setInterval(() => {
+                loadCities();
+                loadAlerts();
+            }, 5 * 60 * 1000);
+        });
     </script>
 </body>
 </html>
+

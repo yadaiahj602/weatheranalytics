@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}WeatherPlatform — Live Weather Analytics{% endblock %}</title>
+    <meta name="description" content="Real-time weather analytics, predictions, alerts and AI assistant for Indian cities.">
+
+    <!-- Leaflet Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg:        #070b14;
+            --bg-sidebar:#0b1120;
+            --bg-card:   rgba(15,23,42,0.85);
+            --border:    rgba(255,255,255,0.07);
+            --border-hi: rgba(6,182,212,0.4);
+            --text:      #f1f5f9;
+            --text-sec:  #94a3b8;
+            --text-dim:  #475569;
+            --cyan:      #06b6d4;
+            --indigo:    #6366f1;
+            --purple:    #a855f7;
+            --rose:      #f43f5e;
+            --emerald:   #10b981;
+            --amber:     #f59e0b;
+            --sw:        260px;
+            --r:         14px;
+        }
+        *{box-sizing:border-box;margin:0;padding:0;font-family:'Inter',sans-serif}
+        body{background:var(--bg);background-image:radial-gradient(at 10% 10%,rgba(99,102,241,.08) 0,transparent 50%),radial-gradient(at 90% 20%,rgba(6,182,212,.08) 0,transparent 50%);color:var(--text);min-height:100vh;display:flex}
+
+        /* ── Layout ── */
+        .layout{display:flex;width:100%;min-height:100vh}
+        aside.sidebar{width:var(--sw);background:var(--bg-sidebar);border-right:1px solid var(--border);padding:20px 14px;display:flex;flex-direction:column;justify-content:space-between;position:sticky;top:0;height:100vh;flex-shrink:0;z-index:100;overflow-y:auto}
+        main.content{flex:1;padding:28px 32px;overflow-y:auto;max-width:calc(100vw - var(--sw))}
+
+        /* ── Brand ── */
+        .brand{display:flex;align-items:center;gap:10px;padding-bottom:18px;border-bottom:1px solid var(--border);margin-bottom:20px}
+        .brand-icon{width:38px;height:38px;background:linear-gradient(135deg,var(--indigo),var(--cyan));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 4px 14px rgba(6,182,212,.25)}
+        .brand-name{font-size:16px;font-weight:800;letter-spacing:-.3px}
+        .brand-sub{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.6px;margin-top:1px}
+
+        /* ── Nav ── */
+        .nav-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin:16px 8px 6px}
+        .nav-list{list-style:none;display:flex;flex-direction:column;gap:2px}
+        .nav-item a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;color:var(--text-sec);text-decoration:none;font-size:13px;font-weight:600;transition:all .15s;border-left:3px solid transparent}
+        .nav-item a:hover,.nav-item.active a{background:rgba(6,182,212,.1);color:var(--cyan);border-left-color:var(--cyan)}
+        .nav-icon{font-size:16px;width:22px;text-align:center;flex-shrink:0}
+        .nav-badge{margin-left:auto;font-size:9px;font-weight:800;background:rgba(244,63,94,.15);color:var(--rose);padding:2px 6px;border-radius:5px}
+
+        /* ── Sidebar footer ── */
+        .sidebar-footer{padding-top:14px;border-top:1px solid var(--border)}
+        .status-pill{background:rgba(16,185,129,.1);color:var(--emerald);border:1px solid rgba(16,185,129,.25);padding:8px 12px;border-radius:10px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:8px}
+        .pulse{width:7px;height:7px;background:var(--emerald);border-radius:50%;box-shadow:0 0 8px var(--emerald);animation:pulse 2s infinite}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+        /* ── Page header ── */
+        .page-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;padding-bottom:20px;border-bottom:1px solid var(--border);margin-bottom:24px;gap:12px}
+        .page-title h2{font-size:22px;font-weight:800;letter-spacing:-.4px}
+        .page-title p{font-size:12px;color:var(--text-dim);margin-top:3px}
+        .header-right{display:flex;align-items:center;gap:10px}
+        .chip{background:var(--bg-card);border:1px solid var(--border);color:var(--text-sec);padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;text-decoration:none}
+        .chip:hover{border-color:var(--cyan);color:#fff}
+        .chip.primary{background:linear-gradient(135deg,var(--indigo),var(--cyan));color:#fff;border:none}
+
+        /* ── Cards ── */
+        .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:22px;backdrop-filter:blur(16px);box-shadow:0 8px 32px rgba(0,0,0,.3)}
+        .card:hover{border-color:rgba(6,182,212,.2)}
+        .tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--cyan);margin-bottom:5px}
+        .section-title{font-size:18px;font-weight:800;color:#fff;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+
+        /* ── Stat boxes ── */
+        .stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}
+        .stat-box{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:10px;padding:14px;text-align:center}
+        .stat-label{font-size:10px;text-transform:uppercase;color:var(--text-dim);font-weight:700}
+        .stat-val{font-size:22px;font-weight:800;color:#fff;margin-top:4px}
+        .stat-sub{font-size:10px;color:var(--text-dim);margin-top:2px}
+
+        /* ── Big temp ── */
+        .big-temp{font-size:60px;font-weight:900;letter-spacing:-3px;line-height:1;background:linear-gradient(180deg,#fff,#cbd5e1);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .cond-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);color:#a5b4fc;padding:4px 12px;border-radius:8px;font-size:12px;font-weight:700}
+
+        /* ── City cards ── */
+        .city-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+        .city-card{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:all .2s}
+        .city-card:hover,.city-card.active{background:rgba(6,182,212,.08);border-color:var(--border-hi);transform:translateY(-1px)}
+        .city-head{display:flex;justify-content:space-between;align-items:center}
+        .city-name{font-size:15px;font-weight:700}
+        .city-temp{font-size:20px;font-weight:800;color:var(--cyan)}
+        .city-sub{display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-top:6px}
+
+        /* ── Forecast ── */
+        .forecast-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+        .fc-card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;transition:border-color .2s}
+        .fc-card:hover{border-color:rgba(99,102,241,.4)}
+        .fc-day{font-size:13px;font-weight:700}
+        .fc-date{font-size:10px;color:var(--text-dim);margin-bottom:8px}
+        .fc-icon{font-size:24px;margin:8px 0}
+        .fc-temp{font-size:13px;font-weight:700}
+        .fc-temp span{color:var(--text-dim);font-weight:400;font-size:11px}
+
+        /* ── Map ── */
+        .map-box{width:100%;height:340px;border-radius:10px;border:1px solid var(--border);margin-top:12px;overflow:hidden}
+
+        /* ── Chart ── */
+        .chart-wrap{position:relative;width:100%;height:280px;margin-top:14px}
+
+        /* ── Alerts ── */
+        .alert-card{border-radius:10px;padding:16px;margin-bottom:12px;border:1px solid}
+        .alert-card.critical{background:rgba(244,63,94,.07);border-color:rgba(244,63,94,.25)}
+        .alert-card.warning{background:rgba(245,158,11,.07);border-color:rgba(245,158,11,.25)}
+        .alert-card.advisory{background:rgba(6,182,212,.07);border-color:rgba(6,182,212,.25)}
+        .alert-head{display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:700}
+        .sev-badge{font-size:10px;font-weight:800;text-transform:uppercase;padding:2px 8px;border-radius:4px;color:#fff}
+        .sev-badge.critical{background:var(--rose)}
+        .sev-badge.warning{background:var(--amber)}
+        .sev-badge.advisory{background:var(--cyan)}
+        .alert-body{font-size:12px;color:var(--text-sec);margin-top:8px;line-height:1.5}
+        .alert-meta{font-size:10px;color:var(--text-dim);margin-top:6px}
+
+        /* ── Incident cards ── */
+        .inc-card{background:rgba(6,182,212,.05);border:1px solid rgba(6,182,212,.2);border-radius:10px;padding:12px;margin-bottom:10px}
+
+        /* ── AI chat ── */
+        .chat-box{height:400px;overflow-y:auto;background:#020617;border:1px solid var(--border);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px;margin-bottom:14px}
+        .msg-row{display:flex;gap:10px;align-items:flex-start}
+        .msg-row.user{justify-content:flex-end}
+        .avatar{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--purple),var(--indigo));display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+        .bubble{padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.55;max-width:80%}
+        .bubble.ai{background:rgba(30,41,59,.7);border:1px solid var(--border);color:#f1f5f9}
+        .bubble.user{background:linear-gradient(135deg,rgba(6,182,212,.2),rgba(99,102,241,.2));border:1px solid var(--cyan);color:#fff}
+        .chat-input-bar{display:flex;gap:8px}
+        .chat-input{flex:1;background:#020617;border:1px solid rgba(255,255,255,.12);color:#fff;padding:11px 14px;border-radius:10px;font-size:13px}
+        .chat-input:focus{outline:none;border-color:var(--purple)}
+        .chat-send{background:linear-gradient(135deg,var(--purple),var(--indigo));border:none;color:#fff;font-weight:700;padding:0 20px;border-radius:10px;cursor:pointer;font-size:13px;transition:opacity .2s}
+        .chat-send:disabled{opacity:.5;cursor:not-allowed}
+        .pill-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+        .pill{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:var(--text-sec);padding:5px 12px;border-radius:20px;font-size:12px;cursor:pointer;transition:all .2s}
+        .pill:hover{border-color:var(--purple);color:#fff;background:rgba(168,85,247,.15)}
+
+        /* ── Form elements ── */
+        .form-group{margin-bottom:14px}
+        .form-label{display:block;font-size:11px;text-transform:uppercase;color:var(--text-dim);font-weight:700;margin-bottom:6px}
+        .form-input{width:100%;background:#020617;border:1px solid rgba(255,255,255,.12);color:#fff;padding:10px 14px;border-radius:8px;font-size:13px}
+        .form-input:focus{outline:none;border-color:var(--cyan)}
+        textarea.form-input{resize:vertical}
+        .btn{border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s}
+        .btn-primary{background:linear-gradient(135deg,var(--rose),#e11d48);color:#fff;width:100%}
+        .btn-secondary{background:rgba(6,182,212,.15);color:var(--cyan);border:1px solid rgba(6,182,212,.3)}
+
+        /* ── Loading spinner ── */
+        .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.2);border-top-color:var(--cyan);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
+        @keyframes spin{to{transform:rotate(360deg)}}
+
+        /* ── Responsive ── */
+        @media(max-width:900px){
+            .layout{flex-direction:column}
+            aside.sidebar{width:100%;height:auto;position:relative}
+            main.content{max-width:100%;padding:16px}
+            .city-grid,.forecast-row{grid-template-columns:repeat(2,1fr)}
+        }
+        @media(max-width:540px){
+            .city-grid,.forecast-row{grid-template-columns:1fr}
+        }
+
+        footer.pg-footer{margin-top:36px;padding-top:18px;border-top:1px solid var(--border);text-align:center;font-size:11px;color:var(--text-dim)}
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+<div class="layout">
+    <!-- ── Sidebar ─────────────────────────────────────────── -->
+    <aside class="sidebar">
+        <div>
+            <a href="{% if request.user.is_authenticated %}/dashboard/{% else %}/{% endif %}" style="text-decoration:none;color:inherit;display:block">
+                <div class="brand">
+                    <div class="brand-icon">🌦️</div>
+                    <div>
+                        <div class="brand-name">WeatherPlatform</div>
+                        <div class="brand-sub">Live Analytics</div>
+                    </div>
+                </div>
+            </a>
+
+            <div class="nav-label">Navigation</div>
+            <ul class="nav-list">
+                <li class="nav-item {% if request.path == '/dashboard/' %}active{% endif %}">
+                    <a href="/dashboard/"><span class="nav-icon">🏠</span><span>Dashboard</span></a>
+                </li>
+                {% if not request.user.is_authenticated %}
+                <li class="nav-item {% if request.path == '/' or '/login' in request.path or '/register' in request.path %}active{% endif %}">
+                    <a href="/"><span class="nav-icon">🔐</span><span>Login / Store User</span></a>
+                </li>
+                {% endif %}
+                <li class="nav-item {% if '/weather' in request.path %}active{% endif %}">
+                    <a href="/weather/"><span class="nav-icon">🌤️</span><span>Weather</span></a>
+                </li>
+                <li class="nav-item {% if '/predictions' in request.path or '/prediction' in request.path %}active{% endif %}">
+                    <a href="/predictions/"><span class="nav-icon">📈</span><span>Predictions</span></a>
+                </li>
+                <li class="nav-item {% if '/historical' in request.path %}active{% endif %}">
+                    <a href="/historical/"><span class="nav-icon">📜</span><span>Historical Data</span></a>
+                </li>
+                <li class="nav-item {% if '/alerts' in request.path %}active{% endif %}">
+                    <a href="/alerts/"><span class="nav-icon">🚨</span><span>Weather Alerts</span><span class="nav-badge">Live</span></a>
+                </li>
+                <li class="nav-item {% if '/incidents' in request.path or '/citizen' in request.path %}active{% endif %}">
+                    <a href="/incidents/"><span class="nav-icon">📢</span><span>Citizen Reports</span></a>
+                </li>
+                <li class="nav-item {% if '/assistant' in request.path or '/ai' in request.path %}active{% endif %}">
+                    <a href="/assistant/"><span class="nav-icon">🤖</span><span>AI Assistant</span></a>
+                </li>
+            </ul>
+        </div>
+
+        <div class="sidebar-footer">
+            {% if request.user.is_authenticated %}
+            <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+                <a href="/profile/" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit">
+                    <div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--indigo),var(--cyan));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff">
+                        {{ request.user.username|slice:":1"|upper }}
+                    </div>
+                    <div>
+                        <div style="font-size:12px;font-weight:700;color:#fff">{{ request.user.username }}</div>
+                        <div style="font-size:10px;color:var(--cyan)">My Profile &rarr;</div>
+                    </div>
+                </a>
+                <a href="/logout/" title="Sign Out" style="color:var(--rose);font-size:16px;text-decoration:none;padding:4px">🚪</a>
+            </div>
+            {% else %}
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+                <a href="/" class="chip" style="text-align:center;padding:6px 8px;font-size:11px;text-decoration:none">Sign In</a>
+                <a href="/?tab=store" class="chip primary" style="text-align:center;padding:6px 8px;font-size:11px;text-decoration:none">Sign Up</a>
+            </div>
+            {% endif %}
+
+            <div class="status-pill">
+                <span class="pulse"></span>
+                <span>Live Data Active</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ── Main Content ────────────────────────────────────── -->
+    <main class="content">
+        <div class="page-header">
+            <div class="page-title">
+                <h2>{% block page_title %}WeatherPlatform{% endblock %}</h2>
+                <p>{% block page_subtitle %}Real-time weather intelligence{% endblock %}</p>
+            </div>
+            <div class="header-right">
+                <span id="liveClock" style="font-size:12px;color:var(--text-dim);font-weight:600"></span>
+                {% block header_actions %}{% endblock %}
+            </div>
+        </div>
+
+        {% block content %}{% endblock %}
+
+        <footer class="pg-footer">
+            WeatherPlatform &nbsp;•&nbsp; Powered by Open-Meteo &nbsp;•&nbsp; Real-time weather intelligence
+        </footer>
+    </main>
+</div>
+
+<!-- ── Global JS ───────────────────────────────────────────── -->
+<script>
+/* Live clock */
+function tickClock(){
+    const el=document.getElementById('liveClock');
+    if(el) el.textContent=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+setInterval(tickClock,1000); tickClock();
+
+/* Weather code map */
+const WX = {
+    0:{l:'Clear Sky',i:'☀️'},1:{l:'Mainly Clear',i:'🌤️'},2:{l:'Partly Cloudy',i:'⛅'},3:{l:'Overcast',i:'☁️'},
+    45:{l:'Foggy',i:'🌫️'},48:{l:'Rime Fog',i:'🌫️'},
+    51:{l:'Light Drizzle',i:'🌦️'},53:{l:'Moderate Drizzle',i:'🌦️'},55:{l:'Dense Drizzle',i:'🌧️'},
+    61:{l:'Slight Rain',i:'🌧️'},63:{l:'Moderate Rain',i:'🌧️'},65:{l:'Heavy Rain',i:'🌧️'},
+    71:{l:'Slight Snow',i:'🌨️'},80:{l:'Rain Showers',i:'🌦️'},81:{l:'Mod. Showers',i:'🌧️'},
+    82:{l:'Violent Showers',i:'⛈️'},95:{l:'Thunderstorm',i:'⛈️'},96:{l:'T-Storm + Hail',i:'⛈️'}
+};
+const wxInfo = code => WX[code] || {l:`Condition ${code}`,i:'🌡️'};
+
+/* Fetch helper */
+async function apiFetch(url){
+    const r=await fetch(url);
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+}
+
+/* Day names */
+const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

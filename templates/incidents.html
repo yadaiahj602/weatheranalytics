@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+{% block title %}Citizen Reports & Incidents — WeatherPlatform{% endblock %}
+{% block page_title %}Citizen Reports & Incidents{% endblock %}
+{% block page_subtitle %}Real-time community crowd-sourced weather hazards, geospatial incident surveillance & safety guides{% endblock %}
+
+{% block header_actions %}
+<button class="chip primary" onclick="document.getElementById('reportFormCard').scrollIntoView({behavior:'smooth'})">📢 File Incident Report</button>
+{% endblock %}
+
+{% block content %}
+<!-- ── Impact Assessment Overview ─── -->
+<div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px">
+    <div class="card" style="padding:18px;text-align:center">
+        <div class="stat-label">🚨 Total Active Reports</div>
+        <div class="stat-val" id="totalReportsCount" style="color:var(--rose)">4</div>
+        <div class="stat-sub">Community field reports</div>
+    </div>
+    <div class="card" style="padding:18px;text-align:center">
+        <div class="stat-label">🌊 Flood & Drainage Alerts</div>
+        <div class="stat-val" id="floodReportsCount" style="color:var(--cyan)">1</div>
+        <div class="stat-sub">Waterlogging hotspots</div>
+    </div>
+    <div class="card" style="padding:18px;text-align:center">
+        <div class="stat-label">💨 Severe Wind / Storms</div>
+        <div class="stat-val" id="stormReportsCount" style="color:var(--amber)">1</div>
+        <div class="stat-sub">Fallen obstacles / squalls</div>
+    </div>
+    <div class="card" style="padding:18px;text-align:center">
+        <div class="stat-label">🛡️ Automated Safety Engine</div>
+        <div class="stat-val" style="color:var(--emerald);font-size:18px">100% Active</div>
+        <div class="stat-sub">Instant precautions enabled</div>
+    </div>
+</div>
+
+<!-- ── Geospatial Incident Map ─── -->
+<div class="card" style="margin-bottom:24px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div>
+            <div class="tag">Geospatial Hazard Map</div>
+            <div class="section-title" style="margin-bottom:2px">🗺️ Live Incident Markers</div>
+            <p style="font-size:12px;color:var(--text-sec)">Click any hazard pin to view details or click on the map to auto-fill reporting coordinates</p>
+        </div>
+        <div style="display:flex;gap:8px;font-size:11px">
+            <span style="display:inline-flex;align-items:center;gap:4px;color:var(--cyan)"><span style="width:8px;height:8px;background:var(--cyan);border-radius:50%"></span> Flood</span>
+            <span style="display:inline-flex;align-items:center;gap:4px;color:var(--purple)"><span style="width:8px;height:8px;background:var(--purple);border-radius:50%"></span> Storm</span>
+            <span style="display:inline-flex;align-items:center;gap:4px;color:var(--amber)"><span style="width:8px;height:8px;background:var(--amber);border-radius:50%"></span> Heatwave</span>
+            <span style="display:inline-flex;align-items:center;gap:4px;color:var(--rose)"><span style="width:8px;height:8px;background:var(--rose);border-radius:50%"></span> Lightning/Fire</span>
+        </div>
+    </div>
+    <div class="map-box" id="incidentsMap" style="height:380px"></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1.2fr 1fr;gap:24px;margin-bottom:24px">
+    <!-- ── Report Incident Form ─── -->
+    <div class="card" id="reportFormCard">
+        <div class="tag" style="color:var(--rose)">Citizen Field Surveillance</div>
+        <div class="section-title">📢 Report Weather Incident</div>
+        <p style="font-size:12px;color:var(--text-sec);margin-bottom:16px;line-height:1.5">
+            Notice fallen trees, urban flash floods, waterlogged highways, or power outages? Report it below to warn fellow citizens and activate emergency precautionary protocols.
+        </p>
+
+        <form id="newIncidentForm" onsubmit="handleIncidentSubmit(event)">
+            <div class="form-group">
+                <label class="form-label">Location / Neighborhood / Landmark</label>
+                <input type="text" id="incLocationName" class="form-input" placeholder="e.g. Indiranagar 100ft Road, Bengaluru" required>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div class="form-group">
+                    <label class="form-label">Hazard Category</label>
+                    <select id="incCategory" class="form-input" style="background:#0b1120">
+                        <option value="flood">🌊 Waterlogging / Flood</option>
+                        <option value="storm">💨 Storm / Fallen Tree / Wind</option>
+                        <option value="lightning">⚡ Lightning Strike</option>
+                        <option value="heatwave">☀️ Extreme Heatwave</option>
+                        <option value="fire">🔥 Fire / Smoke Risk</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Severity Level</label>
+                    <select id="incSeverity" class="form-input" style="background:#0b1120">
+                        <option value="critical">🔴 Critical (Immediate Danger)</option>
+                        <option value="warning" selected>🟡 Warning (Hazardous)</option>
+                        <option value="advisory">🔵 Advisory (Caution Required)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:flex-end">
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Latitude</label>
+                    <input type="number" step="0.0001" id="incLat" class="form-input" value="12.9716" required>
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Longitude</label>
+                    <input type="number" step="0.0001" id="incLon" class="form-input" value="77.5946" required>
+                </div>
+                <button type="button" class="chip" onclick="detectFormLocation()" style="height:38px;padding:0 12px" title="Use current GPS">📍 GPS</button>
+            </div>
+
+            <div class="form-group" style="margin-top:14px">
+                <label class="form-label">Incident Description & Observation Details</label>
+                <textarea id="incDescription" class="form-input" rows="3" placeholder="Describe the severity, affected lanes, damage, or water depth..." required></textarea>
+            </div>
+
+            <button type="submit" id="incSubmitBtn" class="btn btn-primary" style="margin-top:6px">
+                🚀 Submit Incident & Generate Safety Guide
+            </button>
+        </form>
+
+        <!-- Dynamic Success / Precaution Box -->
+        <div id="formResultBox" style="display:none;margin-top:18px;padding:16px;background:rgba(6,182,212,.08);border:1px solid var(--cyan);border-radius:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <strong style="color:#fff;font-size:14px">✅ Incident Registered</strong>
+                <span id="resultCategoryBadge" class="sev-badge warning">WARNING</span>
+            </div>
+            <p id="resultMsg" style="font-size:12px;color:var(--text-sec);line-height:1.5"></p>
+            <div style="margin-top:10px">
+                <strong style="font-size:11px;text-transform:uppercase;color:var(--cyan);letter-spacing:.6px">Recommended Safety Precautions:</strong>
+                <ul id="resultPrecautions" style="font-size:12px;color:var(--text);margin-top:6px;padding-left:18px;line-height:1.6"></ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Community Incident Feed ─── -->
+    <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <div>
+                <div class="tag">Live Feed</div>
+                <div class="section-title" style="margin-bottom:2px">📋 Community Reports</div>
+            </div>
+            <button class="chip" onclick="loadIncidentsFeed()" style="font-size:11px">↻ Refresh</button>
+        </div>
+
+        <div id="incidentsFeedList" style="max-height:560px;overflow-y:auto;display:flex;flex-direction:column;gap:12px">
+            <div style="color:var(--text-dim);font-size:12px">Loading verified community reports…</div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Precaution Guides ─── -->
+<div class="card">
+    <div class="section-title">🛡️ Standard Disaster Precaution Guides</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:12px">
+        <div style="background:rgba(6,182,212,.05);border:1px solid rgba(6,182,212,.2);border-radius:10px;padding:16px">
+            <h4 style="color:var(--cyan);font-size:14px;margin-bottom:8px">🌊 Flood & Waterlogging Protocol</h4>
+            <ul style="font-size:12px;color:var(--text-sec);padding-left:16px;line-height:1.6">
+                <li>Move to higher elevated terrain immediately.</li>
+                <li>Never attempt to drive through waterlogged subways or roads.</li>
+                <li>Disconnect primary electrical mains if water enters property.</li>
+                <li>Avoid open storm drains and manholes.</li>
+            </ul>
+        </div>
+        <div style="background:rgba(168,85,247,.05);border:1px solid rgba(168,85,247,.2);border-radius:10px;padding:16px">
+            <h4 style="color:var(--purple);font-size:14px;margin-bottom:8px">💨 Severe Gale & Storm Protocol</h4>
+            <ul style="font-size:12px;color:var(--text-sec);padding-left:16px;line-height:1.6">
+                <li>Stay away from large trees, billboards, and metal hoardings.</li>
+                <li>Anchor loose rooftop items and shutter glass windows.</li>
+                <li>Keep flashlights and emergency power banks charged.</li>
+                <li>Do not park vehicles under aged trees or power lines.</li>
+            </ul>
+        </div>
+        <div style="background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.2);border-radius:10px;padding:16px">
+            <h4 style="color:var(--amber);font-size:14px;margin-bottom:8px">☀️ Heatwave & Solar Radiation</h4>
+            <ul style="font-size:12px;color:var(--text-sec);padding-left:16px;line-height:1.6">
+                <li>Hydrate frequently with water and electrolyte solutions.</li>
+                <li>Avoid direct sun exposure between 11:00 AM and 3:30 PM.</li>
+                <li>Wear light, breathable cotton fabrics.</li>
+                <li>Seek shade immediately if experiencing dizziness or nausea.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let incMap = null;
+let markersLayer = null;
+
+const CATEGORY_COLORS = {
+    flood: '#06b6d4',
+    storm: '#a855f7',
+    heatwave: '#f59e0b',
+    lightning: '#f43f5e',
+    fire: '#f43f5e'
+};
+
+function initIncidentsMap() {
+    if (incMap) return;
+    incMap = L.map('incidentsMap', { zoomControl: false }).setView([20.5, 78.9], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(incMap);
+    L.control.zoom({ position: 'bottomright' }).addTo(incMap);
+    markersLayer = L.layerGroup().addTo(incMap);
+
+    // Clicking map auto-fills latitude and longitude in the form
+    incMap.on('click', e => {
+        const { lat, lng } = e.latlng;
+        document.getElementById('incLat').value = lat.toFixed(4);
+        document.getElementById('incLon').value = lng.toFixed(4);
+        L.popup()
+            .setLatLng(e.latlng)
+            .setContent(`<div style="font-size:12px;font-family:sans-serif">📍 Selected for report:<br><b>${lat.toFixed(4)}°N, ${lng.toFixed(4)}°E</b></div>`)
+            .openOn(incMap);
+    });
+}
+
+async function loadIncidentsFeed() {
+    try {
+        const d = await apiFetch('/api/incidents/list/');
+        const list = document.getElementById('incidentsFeedList');
+        const incidents = d.incidents || [];
+
+        // Update stats
+        document.getElementById('totalReportsCount').textContent = incidents.length;
+        document.getElementById('floodReportsCount').textContent = incidents.filter(i => i.category === 'flood').length;
+        document.getElementById('stormReportsCount').textContent = incidents.filter(i => i.category === 'storm').length;
+
+        // Clear markers
+        if (markersLayer) markersLayer.clearLayers();
+
+        if (incidents.length === 0) {
+            list.innerHTML = '<p style="color:var(--text-dim);font-size:12px">No incidents reported yet.</p>';
+            return;
+        }
+
+        list.innerHTML = incidents.map(inc => {
+            const color = CATEGORY_COLORS[inc.category] || 'var(--cyan)';
+            const precautionsHtml = (inc.precautions || []).map(p => `<li>${p}</li>`).join('');
+
+            return `
+            <div class="card" style="padding:14px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.08)">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                    <span style="font-size:12px;font-weight:800;text-transform:uppercase;color:${color};letter-spacing:.6px">
+                        ${inc.category} Hazard
+                    </span>
+                    <span style="font-size:10px;color:var(--text-dim)">${inc.created_at || ''}</span>
+                </div>
+                <div style="font-size:13px;color:#fff;font-weight:600;margin-bottom:6px">${inc.description}</div>
+                <div style="font-size:11px;color:var(--text-dim);display:flex;justify-content:space-between;align-items:center">
+                    <span>📍 ${inc.lat?.toFixed(4)}°N, ${inc.lon?.toFixed(4)}°E</span>
+                    <button class="chip" style="font-size:10px;padding:3px 8px" onclick="focusIncident(${inc.lat},${inc.lon})">View on Map ↗</button>
+                </div>
+                ${precautionsHtml ? `
+                <details style="margin-top:8px;font-size:11px;color:var(--text-sec)">
+                    <summary style="cursor:pointer;color:var(--cyan);font-weight:700">Recommended Safety Precautions</summary>
+                    <ul style="margin-top:6px;padding-left:16px;line-height:1.5">${precautionsHtml}</ul>
+                </details>` : ''}
+            </div>`;
+        }).join('');
+
+        // Add markers to map
+        incidents.forEach(inc => {
+            if (inc.lat && inc.lon) {
+                const color = CATEGORY_COLORS[inc.category] || '#06b6d4';
+                const marker = L.circleMarker([inc.lat, inc.lon], {
+                    radius: 9,
+                    color: color,
+                    fillColor: color,
+                    fillOpacity: 0.85,
+                    weight: 2
+                });
+
+                const popContent = `
+                <div style="min-width:180px;font-family:sans-serif">
+                    <strong style="color:${color};text-transform:uppercase;font-size:12px">[${inc.category.toUpperCase()}]</strong><br>
+                    <div style="font-size:13px;color:#1e293b;margin:4px 0;font-weight:600">${inc.description}</div>
+                    <div style="font-size:10px;color:#64748b">Reported: ${inc.created_at || 'Recently'}</div>
+                </div>`;
+                marker.bindPopup(popContent);
+                markersLayer.addLayer(marker);
+            }
+        });
+    } catch (e) {
+        console.warn('Failed to load incidents:', e);
+    }
+}
+
+function focusIncident(lat, lon) {
+    if (incMap && lat && lon) {
+        incMap.setView([lat, lon], 12, { animate: true });
+        document.getElementById('incidentsMap').scrollIntoView({ behavior: 'smooth' });
+    }
+}
+
+function detectFormLocation() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(p => {
+        document.getElementById('incLat').value = p.coords.latitude.toFixed(4);
+        document.getElementById('incLon').value = p.coords.longitude.toFixed(4);
+        if (incMap) incMap.setView([p.coords.latitude, p.coords.longitude], 11);
+    });
+}
+
+async function handleIncidentSubmit(e) {
+    e.preventDefault();
+    const btn = document.getElementById('incSubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Processing Incident…';
+
+    const locationName = document.getElementById('incLocationName').value.trim();
+    const category = document.getElementById('incCategory').value;
+    const severity = document.getElementById('incSeverity').value;
+    const lat = parseFloat(document.getElementById('incLat').value);
+    const lon = parseFloat(document.getElementById('incLon').value);
+    const descText = document.getElementById('incDescription').value.trim();
+
+    const fullDescription = `${locationName ? `[${locationName}] ` : ''}${descText}`;
+
+    try {
+        const resp = await fetch('/api/incidents/report/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                description: fullDescription,
+                category: category,
+                severity: severity,
+                lat: lat,
+                lon: lon
+            })
+        });
+        const data = await resp.json();
+
+        if (data.status === 'success') {
+            const box = document.getElementById('formResultBox');
+            box.style.display = 'block';
+            document.getElementById('resultCategoryBadge').textContent = (data.category || category).toUpperCase();
+            document.getElementById('resultMsg').textContent = `Report saved to live incident surveillance network. Incident ID #${data.id}.`;
+
+            const precList = document.getElementById('resultPrecautions');
+            precList.innerHTML = (data.precautions || []).map(p => `<li>${p}</li>`).join('');
+
+            // Add marker immediately to map
+            if (markersLayer) {
+                const marker = L.circleMarker([lat, lon], {
+                    radius: 11,
+                    color: '#f43f5e',
+                    fillColor: '#f43f5e',
+                    fillOpacity: 0.9
+                }).bindPopup(`<b>${data.category.toUpperCase()}</b><br>${fullDescription}`).openPopup();
+                markersLayer.addLayer(marker);
+                incMap.setView([lat, lon], 12);
+            }
+
+            // Reload feed
+            loadIncidentsFeed();
+            document.getElementById('incDescription').value = '';
+        } else {
+            alert('Could not submit report: ' + (data.error || 'Server error'));
+        }
+    } catch (err) {
+        alert('Network error submitting incident.');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🚀 Submit Incident & Generate Safety Guide';
+    }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    initIncidentsMap();
+    loadIncidentsFeed();
+});
+</script>
+{% endblock %}

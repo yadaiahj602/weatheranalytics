@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}Weather — WeatherPlatform{% endblock %}
+{% block page_title %}Weather{% endblock %}
+{% block page_subtitle %}Live conditions for any location — click the map or search a city{% endblock %}
+
+{% block header_actions %}
+<button class="chip primary" onclick="detectMyLocation()">📍 Detect My Location</button>
+{% endblock %}
+
+{% block content %}
+<!-- ── Current conditions banner ─── -->
+<div class="card" style="margin-bottom:20px">
+    <div style="display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;flex-wrap:wrap">
+        <div>
+            <div class="tag">Currently Viewing</div>
+            <div style="font-size:24px;font-weight:800;color:#fff" id="wCityName">Select a location</div>
+            <div style="font-size:12px;color:var(--text-dim)" id="wCoords">Click the map or choose a city below</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px">
+            <div class="big-temp" id="wTemp">—°</div>
+            <div class="cond-badge" id="wCond"><span id="wCondIcon">🌡️</span> <span id="wCondLabel">—</span></div>
+        </div>
+    </div>
+    <div class="stat-grid" style="margin-top:16px;grid-template-columns:repeat(4,1fr)">
+        <div class="stat-box"><div class="stat-label">🌡️ Temperature</div><div class="stat-val" id="wTempBox" style="font-size:18px">—°C</div></div>
+        <div class="stat-box"><div class="stat-label">💧 Humidity</div><div class="stat-val" id="wHumBox" style="font-size:18px">—%</div></div>
+        <div class="stat-box"><div class="stat-label">💨 Wind Speed</div><div class="stat-val" id="wWindBox" style="font-size:18px">— m/s</div></div>
+        <div class="stat-box"><div class="stat-label">☁️ Condition</div><div class="stat-val" id="wCondBox" style="font-size:13px;color:var(--cyan)">—</div></div>
+    </div>
+</div>
+
+<!-- ── City selector ─── -->
+<div class="card" style="margin-bottom:20px">
+    <div class="section-title">🏙️ Quick City Select</div>
+    <div class="city-grid" id="wCityGrid">
+        <div class="city-card active" onclick="loadWeather('Bengaluru',12.9716,77.5946,this)">
+            <div class="city-head"><span class="city-name">🌆 Bengaluru</span><span class="city-temp" id="wt-bengaluru">—°C</span></div>
+            <div class="city-sub"><span>Karnataka</span><span id="wc-bengaluru">—</span></div>
+        </div>
+        <div class="city-card" onclick="loadWeather('Mumbai',19.0760,72.8777,this)">
+            <div class="city-head"><span class="city-name">🌊 Mumbai</span><span class="city-temp" id="wt-mumbai">—°C</span></div>
+            <div class="city-sub"><span>Maharashtra</span><span id="wc-mumbai">—</span></div>
+        </div>
+        <div class="city-card" onclick="loadWeather('Delhi',28.6139,77.2090,this)">
+            <div class="city-head"><span class="city-name">🏛️ Delhi</span><span class="city-temp" id="wt-delhi">—°C</span></div>
+            <div class="city-sub"><span>NCT</span><span id="wc-delhi">—</span></div>
+        </div>
+        <div class="city-card" onclick="loadWeather('Chennai',13.0827,80.2707,this)">
+            <div class="city-head"><span class="city-name">🌴 Chennai</span><span class="city-temp" id="wt-chennai">—°C</span></div>
+            <div class="city-sub"><span>Tamil Nadu</span><span id="wc-chennai">—</span></div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Interactive Map ─── -->
+<div class="card" style="margin-bottom:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div>
+            <div class="tag">Interactive Map</div>
+            <div style="font-size:16px;font-weight:800;color:#fff">Click anywhere to get weather</div>
+        </div>
+        <div id="mapLoading" style="display:none"><span class="spinner"></span> Fetching weather…</div>
+    </div>
+    <div class="map-box" id="weatherMap" style="height:380px"></div>
+    <div id="mapResult" style="display:none;margin-top:14px;padding:14px;background:rgba(6,182,212,.07);border:1px solid rgba(6,182,212,.25);border-radius:10px">
+        <strong id="mapResultTitle" style="font-size:14px;color:#fff">—</strong>
+        <div id="mapResultBody" style="font-size:13px;color:var(--text-sec);margin-top:6px;line-height:1.6"></div>
+    </div>
+</div>
+
+<!-- ── 5-Day Forecast ─── -->
+<div class="card">
+    <div class="section-title">📅 5-Day Forecast</div>
+    <div class="forecast-row" id="wForecastRow">
+        <div class="fc-card"><div class="fc-day" style="color:var(--text-dim)">Select a city to see forecast</div></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let wMap=null, clickMarker=null;
+
+function initWeatherMap(){
+    if(wMap) return;
+    wMap=L.map('weatherMap',{zoomControl:false}).setView([20.5,78.9],5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(wMap);
+    L.control.zoom({position:'bottomright'}).addTo(wMap);
+
+    // City markers
+    [{name:'Bengaluru',lat:12.9716,lon:77.5946},
+     {name:'Mumbai',lat:19.0760,lon:72.8777},
+     {name:'Delhi',lat:28.6139,lon:77.2090},
+     {name:'Chennai',lat:13.0827,lon:80.2707}].forEach(c=>{
+        L.circleMarker([c.lat,c.lon],{radius:8,color:'\#06b6d4',fillColor:'\#06b6d4',fillOpacity:.8})
+         .addTo(wMap).bindTooltip(c.name,{permanent:true,direction:'top',className:'leaflet-city-label'});
+    });
+
+    // Click handler — fetch weather for clicked coordinates
+    wMap.on('click',async e=>{
+        const {lat,lng}=e.latlng;
+        document.getElementById('mapLoading').style.display='block';
+        if(clickMarker) wMap.removeLayer(clickMarker);
+        clickMarker=L.marker([lat,lng]).addTo(wMap).bindPopup('Fetching weather…').openPopup();
+        try{
+            const d=await apiFetch(`/api/weather/?lat=${lat.toFixed(4)}&lon=${lng.toFixed(4)}`);
+            const temp=d.current_temperature??d.temperature??'—';
+            const wx=wxInfo(d.current_weather_code??d.weather_code??0);
+            const wind=d.wind_speed??'—';
+            const hum=d.humidity??d.relative_humidity??'—';
+
+            const popHtml=`<div style="min-width:180px;font-family:sans-serif">
+                <strong style="font-size:14px">${lat.toFixed(4)}°N, ${lng.toFixed(4)}°E</strong><br>
+                <div style="font-size:28px;font-weight:900;color:\#0284c7;margin:6px 0">${typeof temp==='number'?Math.round(temp*10)/10:temp}°C ${wx.i}</div>
+                <div style="font-size:12px"><b>${wx.l}</b></div>
+                <div style="font-size:11px;color:\#475569;margin-top:6px">💨 ${wind} m/s &nbsp; 💧 ${hum}%</div>
+            </div>`;
+            clickMarker.setPopupContent(popHtml);
+
+            // Also update result box below map
+            const rb=document.getElementById('mapResult');
+            rb.style.display='block';
+            document.getElementById('mapResultTitle').textContent=`📍 ${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E`;
+            document.getElementById('mapResultBody').innerHTML=`${wx.i} ${wx.l} &nbsp;•&nbsp; <strong>${typeof temp==='number'?Math.round(temp*10)/10:temp}°C</strong> &nbsp;•&nbsp; 💨 ${wind} m/s &nbsp;•&nbsp; 💧 ${hum}%`;
+
+            // Update the top banner too
+            updateBanner(`${lat.toFixed(2)}°N ${lng.toFixed(2)}°E`,lat,lng,temp,wx,wind,hum);
+        }catch(e){
+            clickMarker.setPopupContent('<div style="color:red">Could not fetch weather</div>');
+        }finally{
+            document.getElementById('mapLoading').style.display='none';
+        }
+    });
+}
+
+function updateBanner(name,lat,lon,temp,wx,wind,hum){
+    document.getElementById('wCityName').textContent=name;
+    document.getElementById('wCoords').textContent=`${parseFloat(lat).toFixed(4)}° N, ${parseFloat(lon).toFixed(4)}° E`;
+    const t=typeof temp==='number'?Math.round(temp*10)/10:temp;
+    document.getElementById('wTemp').textContent=`${t}°`;
+    document.getElementById('wCondIcon').textContent=wx.i;
+    document.getElementById('wCondLabel').textContent=wx.l;
+    document.getElementById('wTempBox').textContent=`${t}°C`;
+    document.getElementById('wHumBox').textContent=`${hum}%`;
+    document.getElementById('wWindBox').textContent=`${wind} m/s`;
+    document.getElementById('wCondBox').textContent=`${wx.i} ${wx.l}`;
+}
+
+async function loadWeather(name,lat,lon,el){
+    document.querySelectorAll('.city-card').forEach(c=>c.classList.remove('active'));
+    if(el) el.classList.add('active');
+    try{
+        const d=await apiFetch(`/api/weather/?lat=${lat}&lon=${lon}`);
+        const temp=d.current_temperature??d.temperature??'—';
+        const wx=wxInfo(d.current_weather_code??d.weather_code??0);
+        const wind=d.wind_speed??'—';
+        const hum=d.humidity??d.relative_humidity??'—';
+        updateBanner(name,lat,lon,temp,wx,wind,hum);
+        if(wMap) wMap.setView([lat,lon],9,{animate:true});
+
+        // Forecast
+        const fc=d.daily_forecast||[];
+        if(fc.length){
+            document.getElementById('wForecastRow').innerHTML=fc.map((f,i)=>{
+                const w=wxInfo(f.weather_code);
+                const day=i===0?'Today':DAYS[new Date(f.date).getDay()];
+                return `<div class="fc-card"><div class="fc-day">${day}</div><div class="fc-date">${f.date.slice(5)}</div><div class="fc-icon">${w.i}</div><div class="fc-temp">${Math.round(f.temperature_max)}° <span>/ ${Math.round(f.temperature_min)}°</span></div></div>`;
+            }).join('');
+        }
+    }catch(e){console.error(e);}
+}
+
+async function loadCityBadges(){
+    try{
+        const d=await apiFetch('/api/weather/cities/');
+        (d.cities||[]).forEach(c=>{
+            const key=c.name.toLowerCase().replace(/\s+/g,'');
+            const t=c.current_temperature??c.temperature;
+            const wx=wxInfo(c.current_weather_code??c.weather_code??0);
+            const te=document.getElementById(`wt-${key}`);
+            const ce=document.getElementById(`wc-${key}`);
+            if(te&&t!=null) te.textContent=`${Math.round(t*10)/10}°C`;
+            if(ce) ce.textContent=`${wx.i} ${wx.l}`;
+        });
+    }catch(e){}
+}
+
+function detectMyLocation(){
+    if(!navigator.geolocation){loadWeather('Bengaluru',12.9716,77.5946,null);return;}
+    navigator.geolocation.getCurrentPosition(
+        p=>{
+            const {latitude:lat,longitude:lon}=p.coords;
+            if(wMap) wMap.setView([lat,lon],12,{animate:true});
+            loadWeather('My Location',lat,lon,null);
+        },
+        ()=>loadWeather('Bengaluru',12.9716,77.5946,document.querySelector('.city-card.active'))
+    );
+}
+
+window.addEventListener('DOMContentLoaded',()=>{
+    initWeatherMap();
+    loadCityBadges();
+    loadWeather('Bengaluru',12.9716,77.5946,document.querySelector('.city-card.active'));
+});
+</script>
+{% endblock %}

@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login & Account Access — WeatherPlatform Live Analytics</title>
+    <meta name="description"
+        content="Access WeatherPlatform: Store your user email and password securely to monitor live satellite weather telemetry and 117-year historical analytics.">
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #030712;
+            --card-bg: rgba(15, 23, 42, 0.78);
+            --border: rgba(255, 255, 255, 0.08);
+            --border-glow: rgba(6, 182, 212, 0.4);
+            --text-main: #f8fafc;
+            --text-sec: #94a3b8;
+            --text-muted: #64748b;
+            --cyan: #06b6d4;
+            --cyan-glow: rgba(6, 182, 212, 0.25);
+            --indigo: #6366f1;
+            --indigo-glow: rgba(99, 102, 241, 0.25);
+            --emerald: #10b981;
+            --emerald-glow: rgba(16, 185, 129, 0.25);
+            --rose: #f43f5e;
+            --amber: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow-x: hidden;
+            padding: 24px 16px;
+        }
+
+        /* Atmospheric Background Mesh & Glows */
+        .ambient-mesh {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            background:
+                radial-gradient(circle at 15% 20%, rgba(99, 102, 241, 0.14) 0%, transparent 45%),
+                radial-gradient(circle at 85% 25%, rgba(6, 182, 212, 0.14) 0%, transparent 45%),
+                radial-gradient(circle at 50% 85%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 50% 40%, rgba(168, 85, 247, 0.06) 0%, transparent 60%);
+        }
+
+        /* Decorative Grid Overlay */
+        .grid-pattern {
+            position: fixed;
+            inset: 0;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Top Header Brand Link */
+        .top-nav {
+            position: absolute;
+            top: 24px;
+            left: 0;
+            right: 0;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            z-index: 10;
+        }
+
+        /* WeatherPlatform logo */
+        .brand-pill {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .brand-avatar {
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, var(--indigo), var(--cyan));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            box-shadow: 0 4px 20px var(--cyan-glow);
+        }
+
+        .brand-title {
+            font-size: 17px;
+            font-weight: 800;
+            letter-spacing: -0.4px;
+        }
+
+        /* LIVE TELEMETRY & INTELLIGENCE */
+        .brand-caption {
+            font-size: 11px;
+            color: var(--cyan);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        /* ── Main Container (Split Showcase) ── */
+        .login-wrapper {
+            position: relative;
+            z-index: 5;
+            width: 100%;
+            max-width: 1060px;
+            margin: 60px auto 20px;
+            display: grid;
+            grid-template-columns: 1.15fr 1fr;
+            gap: 36px;
+            align-items: center;
+        }
+
+        /* Left Showcase Section */
+        .showcase-pane {
+            padding: 20px;
+        }
+
+        .live-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(16, 185, 129, 0.12);
+            color: var(--emerald);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 20px;
+        }
+
+        .pulse-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--emerald);
+            box-shadow: 0 0 10px var(--emerald);
+            animation: pulse-ring 2s infinite;
+        }
+
+        @keyframes pulse-ring {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.4;
+                transform: scale(1.3);
+            }
+        }
+
+        .showcase-title {
+            font-size: 38px;
+            font-weight: 900;
+            line-height: 1.15;
+            letter-spacing: -1.2px;
+            color: #fff;
+            margin-bottom: 16px;
+        }
+
+        .showcase-title span {
+            background: linear-gradient(135deg, var(--cyan), #818cf8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .showcase-desc {
+            font-size: 14px;
+            color: var(--text-sec);
+            line-height: 1.6;
+            margin-bottom: 28px;
+            max-width: 480px;
+        }
+
+        /* Feature List */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 28px;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 14px 16px;
+            backdrop-filter: blur(12px);
+            transition: border-color 0.2s;
+        }
+
+        .feature-card:hover {
+            border-color: rgba(6, 182, 212, 0.35);
+        }
+
+        .feature-icon {
+            font-size: 20px;
+            margin-bottom: 6px;
+        }
+
+        .feature-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .feature-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* Mini Live Metro Ticker */
+        .metro-ticker {
+            display: flex;
+            gap: 10px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 14px;
+            align-items: center;
+            overflow-x: auto;
+        }
+
+        .metro-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: var(--text-sec);
+            white-space: nowrap;
+        }
+
+        .metro-badge strong {
+            color: #fff;
+        }
+
+        .metro-badge .temp {
+            color: var(--cyan);
+            font-weight: 700;
+        }
+
+        /* ── Right Authentication Card ── */
+        .auth-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 34px 30px;
+            backdrop-filter: blur(28px);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.04);
+            position: relative;
+        }
+
+        /* Tab Switcher */
+        .tab-switcher {
+            display: flex;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 22px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            border-radius: 9px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: transparent;
+            color: var(--text-sec);
+        }
+
+        .tab-btn.active-store {
+            background: linear-gradient(135deg, var(--emerald), var(--cyan));
+            color: #fff;
+            box-shadow: 0 4px 14px var(--emerald-glow);
+        }
+
+        .tab-btn.active-login {
+            background: linear-gradient(135deg, var(--indigo), var(--cyan));
+            color: #fff;
+            box-shadow: 0 4px 14px var(--indigo-glow);
+        }
+
+        /* Form Headings */
+        .auth-header {
+            margin-bottom: 18px;
+        }
+
+        .auth-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: -0.3px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .auth-subtitle {
+            font-size: 12px;
+            color: var(--text-sec);
+            margin-top: 4px;
+            line-height: 1.5;
+        }
+
+        /* Inputs */
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--text-sec);
+            margin-bottom: 6px;
+        }
+
+        .input-wrap {
+            position: relative;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 14px;
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        .form-input {
+            width: 100%;
+            background: #020617;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #fff;
+            padding: 11px 14px 11px 38px;
+            border-radius: 9px;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--cyan);
+            box-shadow: 0 0 0 3px var(--cyan-glow);
+        }
+
+        .form-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 14px;
+            cursor: pointer;
+        }
+
+        .toggle-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 14px;
+            padding: 4px;
+        }
+
+        /* Password Strength */
+        .strength-container {
+            margin-bottom: 12px;
+            display: none;
+        }
+
+        .strength-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .strength-track {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .strength-bar {
+            height: 100%;
+            width: 20%;
+            background: var(--rose);
+            transition: all 0.3s;
+        }
+
+        /* Alerts */
+        .alert-banner {
+            padding: 12px 14px;
+            border-radius: 10px;
+            font-size: 12px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert-error {
+            background: rgba(244, 63, 94, 0.12);
+            border: 1px solid rgba(244, 63, 94, 0.35);
+            color: #fca5a5;
+        }
+
+        .alert-active-user {
+            background: rgba(6, 182, 212, 0.12);
+            border: 1px solid rgba(6, 182, 212, 0.35);
+            color: #67e8f9;
+            justify-content: space-between;
+        }
+
+        /* Action Buttons */
+        .btn-submit {
+            width: 100%;
+            padding: 13px;
+            border: none;
+            border-radius: 9px;
+            font-size: 14px;
+            font-weight: 800;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-store {
+            background: linear-gradient(135deg, var(--emerald), var(--cyan));
+            box-shadow: 0 6px 20px var(--emerald-glow);
+        }
+
+        .btn-store:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+
+        .btn-login {
+            background: linear-gradient(135deg, var(--indigo), var(--cyan));
+            box-shadow: 0 6px 20px var(--indigo-glow);
+        }
+
+        .btn-login:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+
+        /* Demo Quick Box */
+        .demo-box {
+            margin-top: 18px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px dashed rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .demo-btn {
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            color: #a5b4fc;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .demo-btn:hover {
+            background: rgba(99, 102, 241, 0.3);
+            color: #fff;
+        }
+
+        /* Bottom helper */
+        .bottom-helper {
+            text-align: center;
+            margin-top: 18px;
+            padding-top: 14px;
+            border-top: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--text-sec);
+        }
+
+        .bottom-helper a {
+            color: var(--cyan);
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .bottom-helper a:hover {
+            text-decoration: underline;
+        }
+
+        .security-footer {
+            margin-top: 14px;
+            text-align: center;
+            font-size: 10px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 880px) {
+            .login-wrapper {
+                grid-template-columns: 1fr;
+                margin-top: 80px;
+            }
+
+            .showcase-pane {
+                text-align: center;
+                padding: 0 10px;
+            }
+
+            .showcase-desc {
+                margin: 0 auto 20px;
+            }
+
+            .feature-grid {
+                max-width: 500px;
+                margin: 0 auto 20px;
+            }
+
+            .metro-ticker {
+                justify-content: center;
+            }
+
+            .top-nav {
+                left: 16px;
+                right: 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Ambient Gradients & Grid Pattern -->
+    <div class="ambient-mesh"></div>
+    <div class="grid-pattern"></div>
+
+    <!-- Top Navigation Header -->
+    <header class="top-nav">
+        <a href="/" class="brand-pill">
+            <div class="brand-avatar">🌦️</div>
+            <div>
+                <div class="brand-title">WeatherPlatform</div>
+            </div>
+        </a>
+    </header>
+
+    <!-- Main Centered Layout -->
+        <main class="login-wrapper">
+
+            <!-- ── LEFT SHOWCASE PANE ── -->
+            <section class="showcase-pane">
+                <div class="live-tag">
+                    <span class="pulse-dot"></span>
+                    <span>Real-Time Atmospheric Intelligence</span>
+                </div>
+
+                <h1 class="showcase-title">
+                    Store Your Credentials & Monitor <span>Live Weather</span>
+                </h1>
+
+                <p class="showcase-desc">
+                    Log in to calibrate personalized alert thresholds, track severe weather corridors across Indian
+                    metros,
+                    and analyze 117-year historical climate patterns.
+                </p>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🛰️</div>
+                        <div class="feature-title">Satellite Radar</div>
+                        <div class="feature-sub">Sub-minute precipitation & cloud cover telemetry</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📜</div>
+                        <div class="feature-title">117-Yr Archive</div>
+                        <div class="feature-sub">Centurial climate baseline dataset (1901–2025)</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🤖</div>
+                        <div class="feature-title">AI Forecaster</div>
+                        <div class="feature-sub">Deep atmospheric pattern prediction agent</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔒</div>
+                        <div class="feature-title">Secure Storage</div>
+                        <div class="feature-sub">PBKDF2 SHA-256 encrypted credentials</div>
+                    </div>
+                </div>
+
+                <!-- Mini Live Metro Telemetry Ticker -->
+                <div class="metro-ticker">
+                    <span
+                        style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);padding-right:6px">Live:</span>
+                    <div class="metro-badge"><strong>Bengaluru</strong> <span class="temp">24.2°C</span></div>
+                    <span style="color:var(--border)">&bull;</span>
+                    <div class="metro-badge"><strong>Mumbai</strong> <span class="temp">29.1°C</span></div>
+                    <span style="color:var(--border)">&bull;</span>
+                    <div class="metro-badge"><strong>Delhi</strong> <span class="temp">31.8°C</span></div>
+                    <span style="color:var(--border)">&bull;</span>
+                    <div class="metro-badge"><strong>Chennai</strong> <span class="temp">30.4°C</span></div>
+                </div>
+            </section>
+
+            <!-- ── RIGHT AUTHENTICATION CARD ── -->
+            <section class="auth-card">
+
+                <!-- Active User Session Alert (if already logged in) -->
+                {% if request.user.is_authenticated %}
+                <div class="alert-banner alert-active-user">
+                    <div>
+                        <div>Signed in as <strong style="color:#fff">{{ request.user.username }}</strong></div>
+                        <div style="font-size:11px;color:var(--text-sec)">{{ request.user.email }}</div>
+                    </div>
+                    <div style="display:flex;gap:6px">
+                        <a href="/dashboard/"
+                            style="background:linear-gradient(135deg,var(--indigo),var(--cyan));color:#fff;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:700;text-decoration:none">Dashboard
+                            &rarr;</a>
+                        <a href="/logout/"
+                            style="background:rgba(244,63,94,0.15);color:var(--rose);border:1px solid rgba(244,63,94,0.3);padding:6px 10px;border-radius:6px;font-size:11px;font-weight:700;text-decoration:none">Sign
+                            Out</a>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Tab Switcher: Store vs Sign In -->
+                <div class="tab-switcher">
+                    <button type="button" id="tabStoreBtn"
+                        class="tab-btn {% if tab == 'store' or not tab %}active-store{% endif %}"
+                        onclick="switchAuthTab('store')">
+                        Email & Password
+                    </button>
+                    <button type="button" id="tabLoginBtn"
+                        class="tab-btn {% if tab == 'login' %}active-login{% endif %}" onclick="switchAuthTab('login')">
+                        🔐 Sign In
+                    </button>
+                </div>
+
+                <!-- Error Feedback -->
+                {% if error %}
+                <div class="alert-banner alert-error">
+                    <span style="font-size:16px">⚠️</span>
+                    <div>{{ error }}</div>
+                </div>
+                {% endif %}
+
+                <!-- ════════════════════════════════════════════════════════ -->
+                <!-- ── TAB 1: STORE EMAIL & PASSWORD (REGISTRATION) ──────── -->
+                <!-- ════════════════════════════════════════════════════════ -->
+                <div id="storeSection" style="{% if tab == 'login' %}display:none{% else %}display:block{% endif %}">
+                    <div class="auth-header">
+                        <div class="auth-title">
+                            <span> User Profile</span>
+                            <span
+                                style="font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(16,185,129,0.15);color:var(--emerald);font-weight:700;text-transform:uppercase">Save
+                                Account</span>
+                        </div>
+                        <p class="auth-subtitle">
+                            Your email and password will be hashed and stored directly in the database.
+                        </p>
+                    </div>
+
+                    <form method="POST" action="/" id="storeForm">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="store">
+
+                        <div class="form-group">
+                            <label class="form-label" for="regEmail">User Email Address <span
+                                    style="color:var(--rose)">*</span></label>
+                            <div class="input-wrap">
+                                <span class="input-icon">✉️</span>
+                                <input type="email" name="email" id="regEmail" class="form-input"
+                                    placeholder="user@domain.com" value="{{ prefill_email }}" required autofocus>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="regUsername">Username <span
+                                    style="font-weight:400;color:var(--text-muted)">(Optional)</span></label>
+                            <div class="input-wrap">
+                                <span class="input-icon">👤</span>
+                                <input type="text" name="username" id="regUsername" class="form-input"
+                                    placeholder="Auto-generated from email prefix">
+                            </div>
+                        </div>
+
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                            <div class="form-group">
+                                <label class="form-label" for="regPassword">Password <span
+                                        style="color:var(--rose)">*</span></label>
+                                <div class="input-wrap">
+                                    <input type="password" name="password" id="regPassword" class="form-input"
+                                        placeholder="Min 4 chars" style="padding-left:14px" required
+                                        oninput="checkStrength(this.value)">
+                                    <button type="button" class="toggle-btn"
+                                        onclick="togglePass('regPassword', this)">👁️</button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="regConfirm">Confirm Password <span
+                                        style="color:var(--rose)">*</span></label>
+                                <div class="input-wrap">
+                                    <input type="password" name="password_confirm" id="regConfirm" class="form-input"
+                                        placeholder="Re-type password" style="padding-left:14px" required>
+                                    <button type="button" class="toggle-btn"
+                                        onclick="togglePass('regConfirm', this)">👁️</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Password strength indicator -->
+                        <div class="strength-container" id="strengthWrap">
+                            <div class="strength-labels">
+                                <span>Password Security:</span>
+                                <span id="strengthLabel" style="font-weight:700">Weak</span>
+                            </div>
+                            <div class="strength-track">
+                                <div class="strength-bar" id="strengthBar"></div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="regCity">Primary Monitored City</label>
+                            <div class="input-wrap">
+                                <span class="input-icon">📍</span>
+                                <select name="home_city" id="regCity" class="form-input form-select">
+                                    <option value="Bengaluru" selected>Bengaluru, Karnataka (Silicon Valley)</option>
+                                    <option value="Mumbai">Mumbai, Maharashtra (West Coast)</option>
+                                    <option value="Delhi">Delhi, NCT (North Corridor)</option>
+                                    <option value="Chennai">Chennai, Tamil Nadu (Bay of Bengal)</option>
+                                    <option value="Kolkata">Kolkata, West Bengal (Eastern Hub)</option>
+                                    <option value="Hyderabad">Hyderabad, Telangana (Deccan Plateau)</option>
+                                    <option value="Pune">Pune, Maharashtra (Western Ghats)</option>
+                                    <option value="Ahmedabad">Ahmedabad, Gujarat (Northwest Plain)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-submit btn-store">
+                            <span>💾</span>
+                            <span>Email & password</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- ════════════════════════════════════════════════════════ -->
+                <!-- ── TAB 2: SIGN IN WITH STORED CREDENTIALS ────────────── -->
+                <!-- ════════════════════════════════════════════════════════ -->
+                <div id="loginSection" style="{% if tab == 'login' %}display:block{% else %}display:none{% endif %}">
+                    <div class="auth-header">
+                        <div class="auth-title">
+                            <span>Sign In with Account</span>
+                            <span
+                                style="font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(99,102,241,0.15);color:#a5b4fc;font-weight:700;text-transform:uppercase">Stored
+                                User</span>
+                        </div>
+                        <p class="auth-subtitle">
+                            Authenticate using your registered email address or username and password.
+                        </p>
+                    </div>
+
+                    <form method="POST" action="/" id="loginForm">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="login">
+
+                        <div class="form-group">
+                            <label class="form-label" for="loginEmail">Email Address or Username <span
+                                    style="color:var(--rose)">*</span></label>
+                            <div class="input-wrap">
+                                <span class="input-icon">✉️</span>
+                                <input type="text" name="email" id="loginEmail" class="form-input"
+                                    placeholder="user@domain.com or username" value="{{ prefill_email }}" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="loginPass">Password <span
+                                    style="color:var(--rose)">*</span></label>
+                            <div class="input-wrap">
+                                <span class="input-icon">🔑</span>
+                                <input type="password" name="password" id="loginPass" class="form-input"
+                                    placeholder="••••••••" required>
+                                <button type="button" class="toggle-btn"
+                                    onclick="togglePass('loginPass', this)">👁️</button>
+                            </div>
+                        </div>
+
+                        <div
+                            style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;font-size:12px">
+                            <label style="display:flex;align-items:center;gap:6px;color:var(--text-sec);cursor:pointer">
+                                <input type="checkbox" name="remember" checked style="accent-color:var(--cyan)"> Keep me
+                                signed in
+                            </label>
+                            <a href="javascript:void(0)" onclick="switchAuthTab('store')"
+                                style="color:var(--cyan);text-decoration:none;font-weight:600">Store new account
+                                &rarr;</a>
+                        </div>
+
+                        <button type="submit" class="btn-submit btn-login">
+                            <span>🔐</span>
+                            <span>Sign In & Enter Dashboard &rarr;</span>
+                        </button>
+                    </form>
+
+                    <!-- 1-Click Demo Credentials -->
+                    <div class="demo-box">
+                        <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">Quick 1-Click Evaluation /
+                            Demo Login:</div>
+                        <button type="button" onclick="fillDemoUser()" class="demo-btn">
+                            ⚡ Fill Demo User (testweather@example.com / weather123)
+                        </button>
+                    </div>
+                </div>
+
+                <div class="security-footer">
+                    <span>🔒 PBKDF2 SHA-256</span>
+                    <span>&bull;</span>
+                    <span>🛡️ Zero API URLs Exposed</span>
+                    <span>&bull;</span>
+                    <span>🟢 Database Active</span>
+                </div>
+
+            </section>
+
+        </main>
+
+        <script>
+            function switchAuthTab(tab) {
+                const storeSec = document.getElementById('storeSection');
+                const loginSec = document.getElementById('loginSection');
+                const tabStoreBtn = document.getElementById('tabStoreBtn');
+                const tabLoginBtn = document.getElementById('tabLoginBtn');
+
+                if (tab === 'store') {
+                    storeSec.style.display = 'block';
+                    loginSec.style.display = 'none';
+                    tabStoreBtn.className = 'tab-btn active-store';
+                    tabLoginBtn.className = 'tab-btn';
+                    const regEmail = document.getElementById('regEmail');
+                    if (regEmail) regEmail.focus();
+                } else {
+                    storeSec.style.display = 'none';
+                    loginSec.style.display = 'block';
+                    tabLoginBtn.className = 'tab-btn active-login';
+                    tabStoreBtn.className = 'tab-btn';
+                    const loginEmail = document.getElementById('loginEmail');
+                    if (loginEmail) loginEmail.focus();
+                }
+            }
+
+            function togglePass(inputId, btn) {
+                const el = document.getElementById(inputId);
+                if (!el) return;
+                if (el.type === 'password') {
+                    el.type = 'text';
+                    btn.textContent = '🙈';
+                } else {
+                    el.type = 'password';
+                    btn.textContent = '👁️';
+                }
+            }
+
+            function checkStrength(pass) {
+                const wrap = document.getElementById('strengthWrap');
+                const bar = document.getElementById('strengthBar');
+                const label = document.getElementById('strengthLabel');
+                if (!wrap || !bar || !label) return;
+
+                if (!pass) {
+                    wrap.style.display = 'none';
+                    return;
+                }
+                wrap.style.display = 'block';
+
+                let score = 0;
+                if (pass.length >= 4) score += 1;
+                if (pass.length >= 8) score += 1;
+                if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) score += 1;
+                if (/[0-9]/.test(pass) || /[^A-Za-z0-9]/.test(pass)) score += 1;
+
+                if (score <= 1) {
+                    bar.style.width = '25%';
+                    bar.style.background = 'var(--rose)';
+                    label.textContent = 'Weak';
+                    label.style.color = 'var(--rose)';
+                } else if (score <= 3) {
+                    bar.style.width = '65%';
+                    bar.style.background = 'var(--amber)';
+                    label.textContent = 'Good';
+                    label.style.color = 'var(--amber)';
+                } else {
+                    bar.style.width = '100%';
+                    bar.style.background = 'var(--emerald)';
+                    label.textContent = 'Strong & Secure';
+                    label.style.color = 'var(--emerald)';
+                }
+            }
+
+        </script>
+</body>
+
+</html>

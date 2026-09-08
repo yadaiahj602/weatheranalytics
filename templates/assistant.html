@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}AI Meteorological Assistant — WeatherPlatform{% endblock %}
+{% block page_title %}Antigravity AI Weather Intelligence Assistant{% endblock %}
+{% block page_subtitle %}Conversational meteorological intelligence powered by real-time RAG context, live telemetry & safety protocols{% endblock %}
+
+{% block content %}
+<div style="max-width:960px;margin:0 auto">
+    <!-- ── AI Assistant Card ─── -->
+    <div class="card" style="padding:24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+            <div style="display:flex;align-items:center;gap:12px">
+                <div class="avatar" style="width:40px;height:40px;font-size:20px">🤖</div>
+                <div>
+                    <h3 style="font-size:16px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px">
+                        Meteorological LLM & RAG Intelligence
+                        <span style="font-size:10px;background:rgba(16,185,129,.15);color:var(--emerald);padding:2px 8px;border-radius:6px;font-weight:700">ONLINE</span>
+                    </h3>
+                    <p style="font-size:11px;color:var(--text-dim)">Grounded in live Open-Meteo telemetry, historical extremes, and emergency precaution rules</p>
+                </div>
+            </div>
+            <div class="status-pill" style="font-size:11px">
+                <span class="pulse"></span>
+                <span>Active RAG Context</span>
+            </div>
+        </div>
+
+        <!-- Chat Stream Box -->
+        <div class="chat-box" id="chatBox">
+            <!-- Initial Welcome Message -->
+            <div class="msg-row">
+                <div class="avatar">🤖</div>
+                <div class="bubble ai">
+                    <p><strong>Hello! I am your Antigravity Weather Intelligence Assistant.</strong></p>
+                    <p style="margin-top:6px">I have direct real-time access to live meteorological telemetry across Indian cities, automated hazard classification models, and emergency safety guidelines.</p>
+                    <p style="margin-top:6px;color:var(--text-sec);font-size:12px">Ask me anything about current weather conditions, 24-hour predictions, flood/storm hazards, or disaster precautions!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Suggested Prompt Pills -->
+        <div style="margin-bottom:14px">
+            <span style="font-size:11px;color:var(--text-dim);text-transform:uppercase;font-weight:700">Suggested Inquiries:</span>
+            <div class="pill-row" style="margin-top:8px">
+                <span class="pill" onclick="sendPrompt('Is there any flash flood hazard in Bengaluru today?')">🌊 Flash flood hazard in Bengaluru?</span>
+                <span class="pill" onclick="sendPrompt('What precautions should I take during a severe heatwave?')">☀️ Heatwave precautions</span>
+                <span class="pill" onclick="sendPrompt('Compare live temperature and wind speed between Mumbai and Chennai')">⚖️ Compare Mumbai vs Chennai</span>
+                <span class="pill" onclick="sendPrompt('What is the 5-day precipitation and heat outlook for Delhi?')">🏛️ Delhi 5-day outlook</span>
+                <span class="pill" onclick="sendPrompt('Provide a summary of today meteorological status across all 4 demo cities')">📋 Today's weather summary</span>
+            </div>
+        </div>
+
+        <!-- Input Bar -->
+        <div class="chat-input-bar">
+            <input class="chat-input" id="chatInput" type="text" placeholder="Ask AI about temperatures, rain risks, storm predictions, or emergency precautions..." onkeydown="if(event.key==='Enter') submitChat()">
+            <button class="chat-send" id="chatSendBtn" type="button" onclick="submitChat()">Ask AI &rarr;</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function sendPrompt(text) {
+    const input = document.getElementById('chatInput');
+    input.value = text;
+    submitChat();
+}
+
+function formatAiText(text) {
+    if (!text) return '';
+    let formatted = text
+        .replace(/\n/g, '<br>')
+        .replace(/• (.*?)(?=<br>|$)/g, '<li style="margin-left:14px;margin-top:4px">$1</li>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    return formatted;
+}
+
+async function submitChat() {
+    const input = document.getElementById('chatInput');
+    const query = input.value.trim();
+    const sendBtn = document.getElementById('chatSendBtn');
+    const box = document.getElementById('chatBox');
+    if (!query) return;
+
+    // Append user message
+    box.innerHTML += `
+        <div class="msg-row user">
+            <div class="bubble user">${query}</div>
+        </div>
+    `;
+    input.value = '';
+    sendBtn.disabled = true;
+    box.scrollTop = box.scrollHeight;
+
+    // Loading indicator
+    const loadId = 'load-' + Date.now();
+    box.innerHTML += `
+        <div class="msg-row" id="${loadId}">
+            <div class="avatar">🤖</div>
+            <div class="bubble ai" style="color:var(--text-dim);font-style:italic">
+                <span class="spinner" style="margin-right:6px"></span> Querying live synoptic telemetry and precaution models…
+            </div>
+        </div>
+    `;
+    box.scrollTop = box.scrollHeight;
+
+    try {
+        const resp = await fetch('/api/ai/chat/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: query })
+        });
+        const data = await resp.json();
+        const reply = data.reply || data.response || 'No telemetry response returned.';
+
+        // Remove loading
+        const loadElem = document.getElementById(loadId);
+        if (loadElem) loadElem.remove();
+
+        // Append AI message
+        box.innerHTML += `
+            <div class="msg-row">
+                <div class="avatar">🤖</div>
+                <div class="bubble ai">${formatAiText(reply)}</div>
+            </div>
+        `;
+    } catch (e) {
+        const loadElem = document.getElementById(loadId);
+        if (loadElem) loadElem.remove();
+
+        box.innerHTML += `
+            <div class="msg-row">
+                <div class="avatar">🤖</div>
+                <div class="bubble ai" style="color:var(--rose)">
+                    ⚠️ Telemetry connection timeout. Please try again.
+                </div>
+            </div>
+        `;
+    } finally {
+        sendBtn.disabled = false;
+        box.scrollTop = box.scrollHeight;
+    }
+}
+</script>
+{% endblock %}

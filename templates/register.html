@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Create Account — WeatherPlatform{% endblock %}
+{% block page_title %}Create Your WeatherPlatform Account{% endblock %}
+{% block page_subtitle %}Set up personalized live alerts, save your favorite metro corridors & store weather records{% endblock %}
+
+{% block content %}
+<div style="max-width:480px;margin:24px auto">
+    <div class="card" style="padding:32px;box-shadow:0 12px 40px rgba(0,0,0,0.5)">
+        <div style="text-align:center;margin-bottom:22px">
+            <div style="width:52px;height:52px;background:linear-gradient(135deg,var(--emerald),var(--cyan));border-radius:14px;display:inline-flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 6px 20px rgba(16,185,129,.3)">
+                🚀
+            </div>
+            <h3 style="font-size:20px;font-weight:800;color:#fff;margin-top:14px">Get Started</h3>
+            <p style="font-size:12px;color:var(--text-sec);margin-top:4px">Create a free weather intelligence profile</p>
+        </div>
+
+        {% if error %}
+        <div style="background:rgba(244,63,94,.12);border:1px solid rgba(244,63,94,.3);color:var(--rose);padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:18px">
+            ⚠️ {{ error }}
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/register/">
+            {% csrf_token %}
+            <div class="form-group">
+                <label class="form-label">Username</label>
+                <input type="text" name="username" class="form-input" placeholder="Choose a unique username" required autofocus>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Email Address</label>
+                <input type="email" name="email" class="form-input" placeholder="your.name@example.com" required>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" name="password" class="form-input" placeholder="••••••••" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Confirm Password</label>
+                    <input type="password" name="password_confirm" class="form-input" placeholder="••••••••" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Primary Home City</label>
+                <select name="home_city" class="form-input" style="background:#0b1120">
+                    <option value="Bengaluru" selected>Bengaluru, Karnataka</option>
+                    <option value="Mumbai">Mumbai, Maharashtra</option>
+                    <option value="Delhi">Delhi, NCT</option>
+                    <option value="Chennai">Chennai, Tamil Nadu</option>
+                    <option value="Kolkata">Kolkata, West Bengal</option>
+                    <option value="Hyderabad">Hyderabad, Telangana</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="padding:12px;font-size:14px;background:linear-gradient(135deg,var(--emerald),var(--cyan));margin-top:8px">
+                Create Account &rarr;
+            </button>
+        </form>
+
+        <div style="text-align:center;margin-top:20px;padding-top:18px;border-top:1px solid var(--border);font-size:12px;color:var(--text-sec)">
+            Already have an account? <a href="/" style="color:var(--cyan);font-weight:700;text-decoration:none">Sign in here &rarr;</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

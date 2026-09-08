@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block title %}4 Demo Cities — Weather Analytics{% endblock %}
+{% block page_title %}4 Demo Cities Telemetry & Geospatial Mapping{% endblock %}
+{% block page_subtitle %}Live multi-city Open-Meteo coordinate queries across India's metropolitan corridors{% endblock %}
+
+{% block content %}
+<!-- Active Selected City Telemetry Banner -->
+<div class="card" style="margin-bottom: 24px; position: relative; overflow: hidden;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div>
+            <div class="section-tag">Currently Inspecting</div>
+            <h2 class="location-title" id="curCityName">Bengaluru</h2>
+            <div class="location-coords" id="curCoords">12.9716° N, 77.5946° E • Live Telemetry</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 20px;">
+            <div class="temp-display" style="margin: 0;">
+                <div class="temp-number" id="curTemp">--°</div>
+                <div class="condition-badge" id="curCondition">Fetching telemetry...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="metrics-grid" style="margin-top: 18px;">
+        <div class="metric-box">
+            <div class="metric-title">Wind Speed</div>
+            <div class="metric-value" id="curWind">-- m/s</div>
+        </div>
+        <div class="metric-box">
+            <div class="metric-title">Weather Code</div>
+            <div class="metric-value" id="curCode">--</div>
+        </div>
+        <div class="metric-box">
+            <div class="metric-title">Humidity</div>
+            <div class="metric-value" id="curHumidity">--%</div>
+        </div>
+    </div>
+</div>
+
+<!-- 4 Demo Cities Interactive Selection Cards -->
+<div class="cities-header">
+    <h3>Select City to Inspect Real-time Telemetry & Map Pin</h3>
+    <span style="font-size: 11px; color: var(--text-muted);">Real-time Open-Meteo API Sync</span>
+</div>
+<div class="cities-grid" style="margin-bottom: 28px;">
+    <div class="city-card active" onclick="selectCity('Bengaluru', 12.9716, 77.5946, this)">
+        <div class="city-card-header">
+            <span class="city-name">Bengaluru</span>
+            <span class="city-temp" id="city-temp-bengaluru">--°C</span>
+        </div>
+        <div class="city-sub">
+            <span>Lat 12.97, Lon 77.59</span>
+            <span>Karnataka</span>
+        </div>
+    </div>
+
+    <div class="city-card" onclick="selectCity('Mumbai', 19.0760, 72.8777, this)">
+        <div class="city-card-header">
+            <span class="city-name">Mumbai</span>
+            <span class="city-temp" id="city-temp-mumbai">--°C</span>
+        </div>
+        <div class="city-sub">
+            <span>Lat 19.08, Lon 72.88</span>
+            <span>Maharashtra</span>
+        </div>
+    </div>
+
+    <div class="city-card" onclick="selectCity('Delhi', 28.6139, 77.2090, this)">
+        <div class="city-card-header">
+            <span class="city-name">Delhi</span>
+            <span class="city-temp" id="city-temp-delhi">--°C</span>
+        </div>
+        <div class="city-sub">
+            <span>Lat 28.61, Lon 77.21</span>
+            <span>NCT Capital</span>
+        </div>
+    </div>
+
+    <div class="city-card" onclick="selectCity('Chennai', 13.0827, 80.2707, this)">
+        <div class="city-card-header">
+            <span class="city-name">Chennai</span>
+            <span class="city-temp" id="city-temp-chennai">--°C</span>
+        </div>
+        <div class="city-sub">
+            <span>Lat 13.08, Lon 80.27</span>
+            <span>Tamil Nadu</span>
+        </div>
+    </div>
+</div>
+
+<!-- Geospatial Leaflet Map -->
+<div class="card" id="mapSection">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <div class="section-tag">Geospatial Telemetry Visualizer</div>
+        <span style="font-size: 11px; color: var(--accent-cyan); font-weight: 700;">OpenStreetMap Live Tile Layer</span>
+    </div>
+    <div id="weatherMap"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let weatherMap = null;
+    const cityMarkers = {};   // name -> marker reference
+    const cityCardEls = {};   // name -> city-card DOM element
+
+    const CITY_COORDS = [
+        { name: "Bengaluru", lat: 12.9716, lon: 77.5946, state: "Karnataka" },
+        { name: "Mumbai",    lat: 19.0760, lon: 72.8777, state: "Maharashtra" },
+        { name: "Delhi",     lat: 28.6139, lon: 77.2090, state: "NCT Capital" },
+        { name: "Chennai",   lat: 13.0827, lon: 80.2707, state: "Tamil Nadu" },
+    ];
+
+    /* ── Map initialisation (called once) ─────────────────────── */
+    function initMap() {
+        if (weatherMap) return;
+        weatherMap = L.map('weatherMap', { zoomControl: false })
+                      .setView([20.5, 78.9], 5);  // India overview
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 18
+        }).addTo(weatherMap);
+        L.control.zoom({ position: 'bottomright' }).addTo(weatherMap);
+
+        // Add a marker for every demo city
+        CITY_COORDS.forEach(c => {
+            const marker = L.marker([c.lat, c.lon]).addTo(weatherMap);
+
+            // Initial lightweight popup (no API call yet)
+            marker.bindPopup(
+                `<div style="font-family:sans-serif;min-width:180px;">
+                    <strong style="font-size:14px;">${c.name}</strong><br>
+                    <span style="color:#64748b;font-size:11px;">${c.lat}° N, ${c.lon}° E</span><br>
+                    <span style="color:#06b6d4;font-size:11px;">Click to load live weather…</span>
+                 </div>`
+            );
+
+            // On popup open → fetch live weather and enrich popup + banner
+            marker.on('popupopen', () => {
+                fetchMarkerWeather(c.name, c.lat, c.lon, marker);
+                // Sync city card highlight
+                document.querySelectorAll('.city-card').forEach(el => el.classList.remove('active'));
+                if (cityCardEls[c.name]) cityCardEls[c.name].classList.add('active');
+                // Pan map to city
+                weatherMap.setView([c.lat, c.lon], 9, { animate: true });
+            });
+
+            cityMarkers[c.name] = marker;
+        });
+    }
+
+    /* ── Fetch live weather and update marker popup + banner ──── */
+    async function fetchMarkerWeather(name, lat, lon, marker) {
+        try {
+            const data = await apiGet(`/api/weather/?lat=${lat}&lon=${lon}`);
+            const temp  = data.current_temperature ?? data.temperature ?? '--';
+            const wCode = data.current_weather_code ?? data.weather_code ?? 0;
+            const cInfo = weatherCodeMap[wCode] || { label: `Code ${wCode}`, icon: '🌤️' };
+            const wind  = data.wind_speed ?? '--';
+            const hum   = data.humidity ?? data.relative_humidity ?? '--';
+
+            // Rich popup HTML
+            marker.setPopupContent(
+                `<div style="font-family:sans-serif;min-width:200px;line-height:1.6;">
+                    <strong style="font-size:15px;color:#0f172a;">${name}</strong><br>
+                    <span style="color:#64748b;font-size:11px;">${lat}° N, ${lon}° E</span>
+                    <div style="margin:8px 0;font-size:26px;font-weight:900;color:#0284c7;">
+                        ${typeof temp === 'number' ? Math.round(temp * 10) / 10 : temp}°C
+                        <span style="font-size:20px;">${cInfo.icon}</span>
+                    </div>
+                    <div style="font-size:12px;font-weight:700;color:#334155;">${cInfo.label}</div>
+                    <div style="display:flex;gap:12px;margin-top:8px;font-size:11px;color:#475569;">
+                        <span>💨 ${wind} m/s</span>
+                        <span>💧 ${hum}%</span>
+                    </div>
+                    <div style="margin-top:8px;">
+                        <button onclick="selectCityFromMap('${name}',${lat},${lon})"
+                            style="background:#0284c7;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">
+                            Full Telemetry ↗
+                        </button>
+                    </div>
+                 </div>`
+            );
+
+            // Also update the top banner with this city's data
+            updateBanner(name, lat, lon, temp, cInfo, wind, hum);
+
+        } catch (err) {
+            marker.setPopupContent(
+                `<div style="color:#dc2626;font-size:12px;">⚠️ Could not fetch live data for ${name}</div>`
+            );
+        }
+    }
+
+    /* ── Update the telemetry banner at the top of the page ───── */
+    function updateBanner(name, lat, lon, temp, cInfo, wind, hum) {
+        document.getElementById('curCityName').textContent = name;
+        document.getElementById('curCoords').textContent =
+            `${lat.toFixed(4)}° N, ${lon.toFixed(4)}° E • Live Telemetry`;
+
+        const tempEl = document.getElementById('curTemp');
+        const condEl = document.getElementById('curCondition');
+        if (tempEl) tempEl.textContent = typeof temp === 'number' ?
+            `${Math.round(temp * 10) / 10}°` : temp;
+        if (condEl) condEl.textContent = `${cInfo.icon} ${cInfo.label}`;
+
+        document.getElementById('curWind').textContent =
+            wind !== '--' ? `${wind} m/s` : '-- m/s';
+        document.getElementById('curCode').textContent =
+            `${cInfo.label}`;
+        document.getElementById('curHumidity').textContent =
+            hum !== '--' ? `${hum}%` : '--%';
+    }
+
+    /* ── Called by city card click ─────────────────────────────── */
+    async function selectCity(name, lat, lon, element) {
+        document.querySelectorAll('.city-card').forEach(c => c.classList.remove('active'));
+        if (element) element.classList.add('active');
+
+        const tempEl = document.getElementById('curTemp');
+        const condEl = document.getElementById('curCondition');
+        if (tempEl) tempEl.textContent = '...';
+        if (condEl) condEl.textContent = 'Fetching telemetry...';
+
+        try {
+            const data = await apiGet(`/api/weather/?lat=${lat}&lon=${lon}`);
+            const temp  = data.current_temperature ?? data.temperature ?? '--';
+            const wCode = data.current_weather_code ?? data.weather_code ?? 0;
+            const cInfo = weatherCodeMap[wCode] || { label: `Code ${wCode}`, icon: '🌤️' };
+            const wind  = data.wind_speed ?? '--';
+            const hum   = data.humidity ?? data.relative_humidity ?? '--';
+
+            updateBanner(name, lat, lon, temp, cInfo, wind, hum);
+
+            // Pan map and open marker popup with live data
+            if (weatherMap && cityMarkers[name]) {
+                weatherMap.setView([lat, lon], 9, { animate: true });
+                cityMarkers[name].openPopup();
+            }
+        } catch (err) {
+            console.error('Select city error:', err);
+            if (condEl) condEl.textContent = 'Failed to load telemetry';
+        }
+    }
+
+    /* ── "Full Telemetry" button inside map popup ──────────────── */
+    function selectCityFromMap(name, lat, lon) {
+        const card = cityCardEls[name];
+        selectCity(name, lat, lon, card);
+    }
+
+    /* ── Populate city card temp badges from /api/weather/cities/ */
+    async function loadCities() {
+        try {
+            const data = await apiGet('/api/weather/cities/');
+            (data.cities || []).forEach(city => {
+                const name = city.city || city.name || '';
+                const temp = city.current_temperature ?? city.temperature;
+                const key  = name.toLowerCase().replace(/\s+/g, '');
+                const el   = document.getElementById(`city-temp-${key}`);
+                if (el && temp !== undefined)
+                    el.textContent = `${Math.round(temp * 10) / 10}°C`;
+            });
+        } catch (err) {
+            console.warn('Cities API error:', err);
+        }
+    }
+
+    /* ── Boot ──────────────────────────────────────────────────── */
+    window.addEventListener('DOMContentLoaded', () => {
+        // Index city card elements for later reference
+        document.querySelectorAll('.city-card').forEach(card => {
+            const nameEl = card.querySelector('.city-name');
+            if (nameEl) cityCardEls[nameEl.textContent.trim()] = card;
+        });
+
+        initMap();
+        loadCities();
+        // Load Bengaluru by default
+        selectCity('Bengaluru', 12.9716, 77.5946,
+                   document.querySelector('.city-card.active'));
+    });
+</script>
+{% endblock %}
+
+
+

@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}Weather Alerts & Hazards — WeatherPlatform{% endblock %}
+{% block page_title %}Meteorological Alerts & Emergency Warnings{% endblock %}
+{% block page_subtitle %}Active severe weather advisories, hazard severity indexing & targeted safety recommendations{% endblock %}
+
+{% block header_actions %}
+<button class="chip primary" onclick="loadAlerts()">↻ Refresh Alerts</button>
+{% endblock %}
+
+{% block content %}
+<!-- ── Alert Surveillance Summary ─── -->
+<div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px">
+    <div class="card" style="padding:18px;text-align:center">
+        <div class="stat-label">🚨 Active Bulletins</div>
+        <div class="stat-val" id="alertTotalCount" style="color:var(--rose)">3</div>
+        <div class="stat-sub">Across coastal & urban zones</div>
+    </div>
+    <div class="card" style="padding:18px;text-align:center">
+        <div class="stat-label">🔴 Critical Level</div>
+        <div class="stat-val" id="alertCriticalCount" style="color:var(--rose)">1</div>
+        <div class="stat-sub">Immediate precaution required</div>
+    </div>
+    <div class="card" style="padding:18px;text-align:center">
+        <div class="stat-label">🟡 Warning Level</div>
+        <div class="stat-val" id="alertWarningCount" style="color:var(--amber)">1</div>
+        <div class="stat-sub">Elevated caution advised</div>
+    </div>
+    <div class="card" style="padding:18px;text-align:center">
+        <div class="stat-label">🔵 Advisory Level</div>
+        <div class="stat-val" id="alertAdvisoryCount" style="color:var(--cyan)">1</div>
+        <div class="stat-sub">Monitoring atmospheric shift</div>
+    </div>
+</div>
+
+<!-- ── Filter Tabs & Active Alerts ─── -->
+<div class="card" style="margin-bottom:24px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+        <div>
+            <div class="tag" style="color:var(--rose)">Surveillance Network</div>
+            <div class="section-title" style="margin-bottom:0">Active Weather Bulletins</div>
+        </div>
+        <div style="display:flex;gap:8px" id="filterTabs">
+            <button class="chip primary" onclick="filterAlerts('all', this)">All (3)</button>
+            <button class="chip" onclick="filterAlerts('Critical', this)">Critical</button>
+            <button class="chip" onclick="filterAlerts('Warning', this)">Warning</button>
+            <button class="chip" onclick="filterAlerts('Advisory', this)">Advisory</button>
+        </div>
+    </div>
+
+    <!-- Active Alerts List -->
+    <div id="alertsContainer" style="display:flex;flex-direction:column;gap:14px">
+        <div style="color:var(--text-dim);font-size:13px">Loading active meteorological alerts…</div>
+    </div>
+</div>
+
+<!-- ── Safety Recommendations & Emergency Protocols ─── -->
+<div class="card">
+    <div class="tag">Emergency Response Protocols</div>
+    <div class="section-title">🛡️ Standard Disaster Precautions & Safety Action Guide</div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:16px">
+        <div style="background:rgba(244,63,94,.06);border:1px solid rgba(244,63,94,.25);border-radius:10px;padding:16px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                <span style="font-size:20px">☀️</span>
+                <h4 style="font-size:14px;color:var(--rose);font-weight:800">Severe Heatwave Action</h4>
+            </div>
+            <ul style="font-size:12px;color:var(--text-sec);padding-left:18px;line-height:1.6">
+                <li>Drink water frequently, even if not currently thirsty.</li>
+                <li>Avoid direct sun exposure during peak diurnal hours (11 AM – 3:30 PM).</li>
+                <li>Wear loose, light-colored, breathable cotton attire.</li>
+                <li>Never leave elderly persons, children, or pets unattended in vehicles.</li>
+                <li>Keep oral rehydration solutions (ORS) readily available.</li>
+            </ul>
+        </div>
+
+        <div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.25);border-radius:10px;padding:16px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                <span style="font-size:20px">💨</span>
+                <h4 style="font-size:14px;color:var(--amber);font-weight:800">High Gale & Squall Winds</h4>
+            </div>
+            <ul style="font-size:12px;color:var(--text-sec);padding-left:18px;line-height:1.6">
+                <li>Stay safely indoors away from glass facades and large unanchored hoardings.</li>
+                <li>Avoid parking motor vehicles beneath mature trees or sagging power cables.</li>
+                <li>Secure loose terrace sheets, solar water fixtures, and antenna arrays.</li>
+                <li>Avoid sea recreational activities or harbor boarding operations.</li>
+            </ul>
+        </div>
+
+        <div style="background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.25);border-radius:10px;padding:16px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                <span style="font-size:20px">🌧️</span>
+                <h4 style="font-size:14px;color:var(--cyan);font-weight:800">Precipitation & Flash Floods</h4>
+            </div>
+            <ul style="font-size:12px;color:var(--text-sec);padding-left:18px;line-height:1.6">
+                <li>Move to higher ground if drainage overflow or waterlogging occurs.</li>
+                <li>Do not attempt to drive through submerged roads or underpasses.</li>
+                <li>Turn off residential electrical mains if water breaches property thresholds.</li>
+                <li>Keep emergency medical supplies, potable water, and non-perishables accessible.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let allAlerts = [];
+
+async function loadAlerts() {
+    try {
+        const d = await apiFetch('/api/alerts/');
+        allAlerts = d.alerts || [];
+
+        // Update summary counters
+        document.getElementById('alertTotalCount').textContent = allAlerts.length;
+        document.getElementById('alertCriticalCount').textContent = allAlerts.filter(a => a.severity === 'Critical').length;
+        document.getElementById('alertWarningCount').textContent = allAlerts.filter(a => a.severity === 'Warning').length;
+        document.getElementById('alertAdvisoryCount').textContent = allAlerts.filter(a => a.severity === 'Advisory').length;
+
+        renderAlerts(allAlerts);
+    } catch (e) {
+        console.error('Failed to load alerts:', e);
+        document.getElementById('alertsContainer').innerHTML = '<p style="color:var(--rose)">Could not load live alerts.</p>';
+    }
+}
+
+function renderAlerts(alerts) {
+    const container = document.getElementById('alertsContainer');
+    if (!alerts.length) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--emerald);font-size:14px;font-weight:700">✅ All meteorological corridors report normal conditions. No active alerts.</div>';
+        return;
+    }
+
+    container.innerHTML = alerts.map(a => {
+        const badgeClass = a.badge_class || (a.severity === 'Critical' ? 'critical' : a.severity === 'Warning' ? 'warning' : 'advisory');
+        const icon = a.type === 'heat' ? '☀️' : a.type === 'wind' ? '💨' : '🌧️';
+
+        return `
+        <div class="alert-card ${badgeClass}">
+            <div class="alert-head">
+                <div style="display:flex;align-items:center;gap:10px">
+                    <span style="font-size:22px">${icon}</span>
+                    <div>
+                        <span style="color:#fff;font-size:15px;font-weight:800">${a.title}</span>
+                        <div style="font-size:11px;color:var(--text-dim);margin-top:2px">📍 Affected Region: <strong style="color:var(--text)">${a.location}</strong></div>
+                    </div>
+                </div>
+                <span class="sev-badge ${badgeClass}">${a.severity}</span>
+            </div>
+            <div class="alert-body">
+                ${a.description}
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);font-size:11px;color:var(--text-dim)">
+                <span>Valid: ${a.start_time || 'Immediate'} &rarr; ${a.end_time || 'Until further bulletin'}</span>
+                <span style="color:var(--emerald);font-weight:700">● Live Satellite & Radar Verified</span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function filterAlerts(level, btn) {
+    document.querySelectorAll('#filterTabs button').forEach(b => b.classList.remove('primary'));
+    if (btn) btn.classList.add('primary');
+
+    if (level === 'all') {
+        renderAlerts(allAlerts);
+    } else {
+        renderAlerts(allAlerts.filter(a => a.severity.toLowerCase() === level.toLowerCase()));
+    }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    loadAlerts();
+});
+</script>
+{% endblock %}
