@@ -1,0 +1,9 @@
+Django>=4.2,<5
+psycopg2-binary>=2.9
+django-celery-beat>=2.5
+celery>=5.3
+redis>=5
+django-decouple>=2.1
+django-environ>=0.10
+# gdal>3.6,<3.7  # GDAL provided via system binaries on Windows
+# djangorestframework>=3.15  # optional
